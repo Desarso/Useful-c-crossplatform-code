@@ -357,9 +357,10 @@ string getStringInRawMode(int minSize, int maxSize){
       //I output rawInput becuase I need to echo manually
         cout<< char(rawInput);
         // cout<<"\nRaw Input: "<<rawInput;
+
     
       //console checks to see if I pressed anything but the esc or enter key.
-        if(rawInput != 10 && rawInput!= 27 && rawInput != 127 && rawInput!=13){
+        if(rawInput != 10 && rawInput!= 27 && rawInput != 127 && rawInput!=13&& rawInput!=8){
           
           input=input+char(rawInput);
           // cout<<input.size();
@@ -375,24 +376,32 @@ string getStringInRawMode(int minSize, int maxSize){
     //if space bar is pressed start a new game
          cout<<"\b \b";
          inputReceived=true;
-         // cout<<"\nMy input was: "<<input;
+    
         cout<<"\n";
         //here I reset all console settings to default
          return input;
         } 
-      if(rawInput == 127){
+      if(rawInput == 127||rawInput==8){
        
         // cout<< "input is: |"<< input;
-        // cout<<"size: "<<input.size();
-
-      
+        // cout<<"size: "<<input.size();f
+          #ifdef __linux__
+            cout<<"\b";
+          #endif
         if(input.size()>0){
-           cout<<"\b \b";
+           cout<<" \b";
+           input = input.substr(0,input.size()-1);
+        }else{
+            cout<<" ";
         }
         // if(input.size()==0){
-        //   cout<<"\b \b";
+          
         // }
-        if(input.size()&&input.size()!=0){input = input.substr(0,input.size()-1);}
+        // if(input.size()!=0||input.size()!='0'){
+        //   // cout<<input.size();
+          
+          
+        //   }
       }
     }
   //here I reset all console settings to default

@@ -17,22 +17,22 @@ int main(){
     char charInput;
     rawInput=getRawInput();
     charInput=rawInput;
-    cout<<"Your raw input was: "<<rawInput<<"\n";
+    cout<<"Your raw input was: "<<"\n";
     cout<<"Your char input was:"<<charInput<<"\n";
     // cout<<"this also";
     // <<" and also: "<<charInput;
-}
 
+}
 
 void clear(){
     #ifdef __MINGW32__ 
-        system("CLS");
+     system("CLS");
     #endif
     #ifdef __linux__
-        system("clear")
+        system("clear");
     #endif
  
-};
+}
 
 
 char getRawInput(){

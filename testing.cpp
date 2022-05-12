@@ -12,6 +12,7 @@
 
 using std::cout;
 using std::string;
+using std::vector;
 // using namespace std::chrono;
 
 //we could display the entire game history, or maybe just clear the screen every time, then we use a timer.
@@ -19,16 +20,16 @@ using std::string;
 
 void clear();
 char getRawInput();
-string getStringInRawMode(int, int);
-string liveInput;
+string getStringInRawMode(int, int, string&);
+// string liveInput;
 
 
 
-void bar(int time){
+void bar(int time, string& liveInput){
     string stuff="";
     while(2){
 
-        liveInput=getStringInRawMode(20,20);
+        stuff=getStringInRawMode(20,20, liveInput);
         // exit(0); 
     }
     if(liveInput=="exit"){
@@ -37,22 +38,88 @@ void bar(int time){
     }
 }
 
-void timer(){
+void timerMinutes(vector<string>& display, int minutesLeft, int secondsLeft, int millileft,string& liveInput){
+    int minutes=0;
+    int seconds=0;
+    int milliSeconds=0;
+    int totalTimeLeftMinutes=3;
+    // int minutesLeft=0;
+    // int secondsLeft=30;
+    // int millileft;
+    string displayMillis="00";
+    string timerString;
     auto start = std::chrono::steady_clock::now();
-    int current_s_elapsed=0;
+    int current_ms_elapsed=0;
     while(2){
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
     auto end = std::chrono::steady_clock::now();
-    if(std::chrono::duration_cast<std::chrono::seconds>(end - start).count()%1==0&&std::chrono::duration_cast<std::chrono::seconds>(end - start).count()!=current_s_elapsed){
-    current_s_elapsed= std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-    clear();
-    cout<<"This is my program with a built in timer\n\n";
-    cout<<"\rseconds: "<<current_s_elapsed<<"\n\n";
-    cout<<"\rinput: "<<liveInput;
-    cout.flush();
-}
-    if(std::chrono::duration_cast<std::chrono::seconds>(end - start).count()==30){
-		system("stty sane");
+    //change the seconds on display array every second;
+      // if(std::chrono::duration_cast<std::chrono::seconds>(end - start).count()%1==0&&std::chrono::duration_cast<std::chrono::seconds>(end - start).count()!=current_s_elapsed){
+      //     current_s_elapsed= std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+      //     clear();
+      //     string timerString ="Time Left- "+std::to_string(minutes)+":"+std::to_string(seconds)+":"+std::to_string(miliSeconds);
+      //     cout<<timerString;
+      // }
+      //    if(std::chrono::duration_cast<std::chrono::minutes>(end - start).count()%1==0&&std::chrono::duration_cast<std::chrono::minutes>(end - start).count()!=current_s_elapsed){
+      //     current_s_elapsed= std::chrono::duration_cast<std::chrono::minutes>(end - start).count();
+      //     clear();
+      //     cout<<"This is my program with a built in timer\n\n";
+      //     cout<<"\rseconds: "<<current_s_elapsed<<"\n\n";
+      //     cout<<"\rinput: "<<liveInput;
+      //     cout.flush();
+      
+      // }
+         if((std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())%100==0&&(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())!=current_ms_elapsed){
+          current_ms_elapsed++;
+          milliSeconds++;
+         
+          if(milliSeconds>10){
+            milliSeconds=0;
+            seconds++;
+            }
+          if(seconds>=60){
+            seconds=0;
+            minutes++;
+          }
+
+          //time down
+
+          clear();
+          timerString ="Time Left-> "+std::to_string(minutesLeft)+":"+std::to_string(secondsLeft)+":"+displayMillis+"\n\n";
+           string inputDisplay="\rInput: "+liveInput;
+          display[2]=inputDisplay;
+          display[1]=timerString;
+          for(int i=0;i<display.size();i++){
+            cout<<"\r"<<display[i];
+          }
+         
+            cout.flush();
+
+          if(millileft>0){
+            displayMillis="0"+std::to_string(millileft-1);
+            millileft--;}
+
+            if(millileft==0&&secondsLeft>0){
+            secondsLeft--;
+            millileft=10;
+          }
+
+          if(secondsLeft==0&&millileft==0&&minutesLeft>0){
+            minutesLeft--;
+            secondsLeft=60;
+            millileft=10;
+            }
+        
+
+          // if(current_ms_elapsed>0){milliSeconds=milliSeconds-current_ms_elapsed;}
+      
+      
+      }
+
+
+
+    if(minutesLeft==0&secondsLeft==0&millileft==0){
+		    system("stty sane");
         exit(0);
     }
     
@@ -61,7 +128,17 @@ void timer(){
 
 
 int main(){
+    string liveInput;
+    const int countDownTime=3;
+    string titleMessage="\rWelcome to dark cave\n\n";
     vector<string> display;
+    int minutes=3;
+    int seconds=0;
+    int miliSeconds=0;
+    string timerString ="Time Left- "+std::to_string(minutes)+":"+std::to_string(seconds)+":"+std::to_string(miliSeconds)+"\n\n";
+    string inputDisplay="\rInput: "+liveInput;
+    // display[2]=inputDisplay;
+    display={titleMessage,timerString,inputDisplay};
     cout<<"this is stuff";
     clear();
     string input;
@@ -69,19 +146,20 @@ int main(){
     //     cout<<"this is an output that will stop once there is input taken.";
     //     if(input=="stop"){exit(0);}
     // }
-    auto start = std::chrono::steady_clock::now();
+    // auto start = std::chrono::steady_clock::now();
     int current_s_elapsed=0;
     
 
-   
-    cout<<"\rThis is my program with a built in timer\n\n";
-    cout<<"\rseconds: 0\n\n";
-    cout<<"\rinput: ";
+    cout<<timerString;
+    // for(int i=0;i<display.size();i++){
+    //   cout<<display[i];
+    // }
     cout.flush();
     // thread first (foo);
-    std::thread second;
-    second= std::thread(bar,2);
-    std::thread timeOut(timer);
+    std::thread second(bar,2,std::ref(liveInput));;
+    std::thread timeout(timerMinutes,std::ref(display),0,30,0,std::ref(liveInput));;
+    // second= std::thread
+    // timeout=std::thread
 
 
 
@@ -89,7 +167,7 @@ int main(){
 
     // first.join();
     second.join();
-    timeOut.join();
+    timeout.join();
 
     cout<<"executing both threads";
 
@@ -132,7 +210,7 @@ char getRawInput(){
 }
 
 
-string getStringInRawMode(int minSize, int maxSize){
+string getStringInRawMode(int minSize, int maxSize, string& liveInput){
       string insideinput="";
       // cout<<input.size();
       int rawInput;
@@ -165,6 +243,11 @@ string getStringInRawMode(int minSize, int maxSize){
         //  cout<<"\b \b";
          inputReceived=true;
         cout<<"\n";
+          // clear();
+          // cout<<insideinput;
+          // exit(0);
+          liveInput="ss";
+          liveInput="";
         //here I reset all console settings to default
          return insideinput;
         } 

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include<fstream>
+#include <fstream>
 #include <algorithm>
 #include <limits>
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
@@ -282,18 +282,18 @@ void greetingModule();
 void useUserInput(string input, int currentRoomID, game, vector<item>&, bool& validInput, bool& gunFound);
 void help(string input);
 void helperMessage();
-vector<item> inventory;
 string getStringInRawMode(int minSize, int maxSize);
 char getRawInput();
-void spacer();
-void divider();
+// void spacer();
+// void divider();
+void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound);
 
 
         
 int main() {
 
   game game={"Death in the Dark",{room("Dark Cave",
-                 "A small dark cave, smells faintly like sulfur smell of sulfur, the is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls of the room, the rooms feels too silent.",
+                 "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent.",
                 1,
                 2,0,0,0),room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
@@ -303,11 +303,13 @@ int main() {
  // game = game.fetchData();
  // game.displayAllGameData();
   int currentRoomId=game.rooms[0].getCurrentRoomId();
+  vector<item> inventory;
   inventory = game.items;
 
   ////main program code
   bool validInput=false;
   bool gunFound=false;
+  bool singleGameThread=true;
   greetingModule();
   largeType("Welcome to");
   largeType(game.name);
@@ -316,14 +318,26 @@ int main() {
   cout<<"\n\n";
   game.getRoomByID(currentRoomId).displayDescription();  
   helperMessage();
-  string userInput="";
-  while(2){
+
+ mainGameLoop(currentRoomId, game, inventory, validInput, gunFound);
+ 
+
+
+
+}
+
+
+void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound){
+   string userInput="";
+   bool singleGameThread=true;
+    while(singleGameThread==true){
     cout<<"\n\n>";
     userInput=getStringInRawMode(0,30);
     useUserInput(userInput, currentRoomId, game, inventory, validInput, gunFound);
   }
-
 }
+
+
 
 void greetingModule(){
   cout << "Welcome to Dark Cave a very small text based game\n\nBy Gabriel Malek\nMay 12, 2022\n\n";
@@ -351,20 +365,20 @@ void useUserInput(string input, int currentRoom, game game, vector<item>& inv, b
       cout<<"Currently your invetory contains:\n";
       int counter=1;
      for(int i=0;i<inv.size();i++){
-         if(inventory[i].name!="gun"||gunFound==false){
-           cout<<counter<<". "<<inventory[i].name<<"\n";
+         if(inv[i].name!="gun"||gunFound==false){
+           cout<<counter<<". "<<inv[i].name<<"\n";
            counter++;
          }else if(gunFound==true){
-             cout<<counter<<". "<<inventory[i].name<<"\n";
+             cout<<counter<<". "<<inv[i].name<<"\n";
              counter++;
          }
-        if(inventory[i].subObjects.size()>0){
-            for(int j=0;j<inventory[i].subObjects.size();j++){
-                if(gunFound==false&&inventory[i].subObjects[j].name!="gun"){
-                  cout<<counter<<". "<<inventory[i].subObjects[j].name<<"\n";
+        if(inv[i].subObjects.size()>0){
+            for(int j=0;j<inv[i].subObjects.size();j++){
+                if(gunFound==false&&inv[i].subObjects[j].name!="gun"){
+                  cout<<counter<<". "<<inv[i].subObjects[j].name<<"\n";
                   counter++;
                 }else if(gunFound==true){
-                    cout<<counter<<". "<<inventory[i].subObjects[j].name<<"\n";
+                    cout<<counter<<". "<<inv[i].subObjects[j].name<<"\n";
                 }
                 
             }
@@ -382,7 +396,7 @@ void useUserInput(string input, int currentRoom, game game, vector<item>& inv, b
         game.getRoomByID(currentRoom).displayRoomName();
         cout<<"\n\n";
         game.getRoomByID(currentRoom).displayDescription();  
-        cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast"; 
+        cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
         game.getRoomByID(currentRoom).toggleDescriptionRead(true);
     }
     
@@ -673,14 +687,18 @@ void clear(){
  
 }
 char getRawInput(){
+
      #ifdef __MINGW32__ 
         return _getch();
     #endif
     
     #ifdef __linux__
+        int rawInput;
         std::system("stty raw");
+		std::system("stty -echo");
         rawInput = getchar();
         std::system("stty cooked");
+		system("stty sane");
         return rawInput;
     #endif
 }

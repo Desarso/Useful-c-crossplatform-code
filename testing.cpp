@@ -27,6 +27,7 @@ void bar(int time){
         // exit(0); 
     }
     if(liveInput=="exit"){
+		system("stty sane");
         exit(0);
     }
 }
@@ -41,11 +42,12 @@ void timer(){
     current_s_elapsed= std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
     clear();
     cout<<"This is my program with a built in timer\n\n";
-    cout<<"seconds: "<<current_s_elapsed<<"\n\n";
-    cout<<"input: "<<liveInput;
+    cout<<"\rseconds: "<<current_s_elapsed<<"\n\n";
+    cout<<"\rinput: "<<liveInput;
     cout.flush();
 }
     if(std::chrono::duration_cast<std::chrono::seconds>(end - start).count()==30){
+		system("stty sane");
         exit(0);
     }
     
@@ -77,9 +79,9 @@ int main(){
     
 // }
    
-    cout<<"This is my program with a built in timer\n\n";
-    cout<<"seconds: 0\n\n";
-    cout<<"input: ";
+    cout<<"\rThis is my program with a built in timer\n\n";
+    cout<<"\rseconds: 0\n\n";
+    cout<<"\rinput: ";
     cout.flush();
     // thread first (foo);
     std::thread second;
@@ -126,8 +128,10 @@ char getRawInput(){
     #ifdef __linux__
         int rawInput;
         std::system("stty raw");
+		std::system("stty -echo");
         rawInput = getchar();
         std::system("stty cooked");
+		system("stty sane");
         return rawInput;
     #endif
 }

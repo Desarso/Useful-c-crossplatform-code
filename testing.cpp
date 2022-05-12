@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string>
+#include <vector>
+#include <fstream>
+#include <algorithm>
+#include <limits>
 #include <thread>
 #include <chrono>
-#include <vector>
 #ifdef __MINGW32__ 
        #include <conio.h>
 #endif
@@ -10,6 +13,8 @@
 using std::cout;
 using std::string;
 // using namespace std::chrono;
+
+//we could display the entire game history, or maybe just clear the screen every time, then we use a timer.
 
 
 void clear();
@@ -56,6 +61,7 @@ void timer(){
 
 
 int main(){
+    vector<string> display;
     cout<<"this is stuff";
     clear();
     string input;
@@ -66,18 +72,7 @@ int main(){
     auto start = std::chrono::steady_clock::now();
     int current_s_elapsed=0;
     
-// while(2){
-//     this_thread::sleep_for(chrono::milliseconds(50));
-//     auto end = chrono::steady_clock::now();
-//     if(chrono::duration_cast<chrono::seconds>(end - start).count()%1==0&&chrono::duration_cast<chrono::seconds>(end - start).count()!=current_s_elapsed){
-//     cout << "\nseconds passed: " << chrono::duration_cast<chrono::seconds>(end - start).count();
-//     current_s_elapsed= chrono::duration_cast<chrono::seconds>(end - start).count();
-// }
-//     if(chrono::duration_cast<chrono::seconds>(end - start).count()==30){
-//         exit(0);
-//     }
-    
-// }
+
    
     cout<<"\rThis is my program with a built in timer\n\n";
     cout<<"\rseconds: 0\n\n";

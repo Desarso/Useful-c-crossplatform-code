@@ -1,9 +1,8 @@
-
-#include <iostream> 
-  #ifdef __MINGW32__ 
-       #include <conio.h>
+    #ifdef __MINGW32__ 
+        return _getch();
     #endif
-
+ 
+#include <iostream>
 using namespace std;
 
 
@@ -12,17 +11,18 @@ char getRawInput();
 
 
 int main(){
-    cout<< "stuff\n";
+
     int rawInput;
     char charInput;
-    rawInput=getRawInput();
-    charInput=rawInput;
-    cout<<"Your raw input was: "<<"\n";
-    cout<<"Your char input was:"<<charInput<<"\n";
-    // cout<<"this also";
-    // <<" and also: "<<charInput;
+    int rawInput=getRawInput();
+    char charInput=rawInput;
+    cout<<"hello";
+    cout << "Your raw input was: "<<"\n";
+    cout << "Your char input was:"<<charInput<<"\n";
+    cout<<"this also"   
+    <<" and also: "<<charInput;
 
-}
+};
 
 void clear(){
     #ifdef __MINGW32__ 
@@ -34,7 +34,7 @@ void clear(){
  
 }
 
-
+// 
 char getRawInput(){
      #ifdef __MINGW32__ 
         return _getch();

@@ -16,6 +16,7 @@
        #include <conio.h>
 #endif
 using namespace std;
+
 //create construct called scores so that I can turn the string of winner into a score for minimax to use
 struct scores{
   int Xscore;
@@ -56,6 +57,7 @@ void dotAnimationFunction(int& index);
 string getStringInRawMode(int minSize, int maxSize);
 void clear();
 char getRawInput();
+int depthFunction();
 
 
 
@@ -455,7 +457,7 @@ int randomNumber(){
 }
 
 
-//large type is a simple function but very tedious to write, I wanted to be able to use an Ascii font, looking back I might have choosen a different font, but it's too late to change it. Would be cool to write a program in javascript that takes Ascci fonts and then outputs a c++ module, I'm sure there are a many external libraries too.
+//large type is a simple function but very tedious to write, I wanted to be able to use an Ascii font.
 void largeType(string input){
   //first layer
   for(int i=0;i<input.size();i++){
@@ -692,9 +694,26 @@ scores Scores=scores(1,-1,0);
 
 // (options,depth,false, alpha, beta, gameComplete, winner, searchTree, debugMode, dotAnimation);
 
+//MINIMAX IS OVERKILL FOR TIC TAC TOE, the program is already super fast, but if we change the max depth to 2,
+// the program will still play perfectly but it will run almost instantly. however, without the longer tree search my
+//little dot animation is too fast to be seen and I didn't like that.
+int maxDepth=8;
+//depthFunction();
+
+
+//ignore this part I added this after the assignment was done, it will randomly make the depth between one and two,
+//when using this function inside minimax, it makes the AI, still play okay but allowing the player to win sometimes.
+// int depthFunction(){
+//   int depth = randomNumber();
+//   if(depth>7){depth =1;}else{depth=2;}
+//   return depth;
+// }
+
+//minimax is not neccesary you can make a perfect tic tac toe AI using a few if statements but I really wanted to try minimax, and also ednded up adding alpha, beta, prunning.
 int minmax(vector<string>& options,int depth, bool isMaximizing,  int alpha, int beta,bool& gameComplete, string& winner, int& searchTree, bool& debugMode, int& dotAnimation){
   string result;
   int score;
+  // maxDepth=depthFunction();
   //minimax checks to see it's current recursion layer state, by calling isGameOver;
   result = isGameOver(options, gameComplete, winner);
   gameComplete=false;
@@ -735,7 +754,7 @@ int minmax(vector<string>& options,int depth, bool isMaximizing,  int alpha, int
           if(options[i]=="-"){
             options[i]="0";
             //minimax calls itself recursively this time switching it's isMaximizing variable
-            score = minmax(options,depth,false,alpha, beta, gameComplete, winner, searchTree, debugMode, dotAnimation);
+            if(depth<maxDepth){score = minmax(options,depth,false,alpha, beta, gameComplete, winner, searchTree, debugMode, dotAnimation);}else{score=0;}
             options[i]="-";
           bestScore=max(bestScore,score);
           alpha=max(alpha,score);
@@ -752,7 +771,7 @@ int minmax(vector<string>& options,int depth, bool isMaximizing,  int alpha, int
           if(options[i]=="-"){
             options[i]="X";
               //minimax calls itself recursively this time switching it's isMaximizing variable
-            score = minmax(options,depth,true, alpha, beta, gameComplete, winner, searchTree, debugMode, dotAnimation);
+            if(depth<maxDepth){score = minmax(options,depth,true, alpha, beta, gameComplete, winner, searchTree, debugMode, dotAnimation);}else{score=0;}
             options[i]="-";
           bestScore=min(bestScore,score);
           beta = min(beta, score);
@@ -810,7 +829,7 @@ char basicABC_SIV(char input, int size) {
 }
 
 
-//I decided to add a loading animation, the cout makes the program slower, but I thought it was worth it, I would like to add prunning to the minimax function to make it faster, but maybe for another time.
+//I decided to add a loading animation, the cout makes the program slower, but I thought it was worth it.
 
 void dotAnimationFunction(int& index){
   index++;
@@ -830,7 +849,7 @@ void dotAnimationFunction(int& index){
 }
 
 
-
+//this functions make the program run on both linux and windows basically equally.
 void clear(){
     #ifdef __MINGW32__ 
         system("CLS");

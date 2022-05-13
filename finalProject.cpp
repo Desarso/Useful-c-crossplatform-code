@@ -26,6 +26,7 @@ const string DEFAULT_FILE_NAME="data.dat";
 const string out="out";
 const string app="app";
 void largeType(string input);
+void clear();
 
 struct item{
   string name;
@@ -279,29 +280,34 @@ void game::getItemsDescByName(string Nam){
 }
 //function declarations
 void greetingModule();
-void useUserInput(string input, int currentRoomID, game, vector<item>&, bool& validInput, bool& gunFound);
+
+//this function is help, i and look. Need seperate functions for more complex tasks.
+void useUserInput(string input, int currentRoomID, game&, vector<item>&, bool& validInput, bool& gunFound, bool& singleThread);
+
+
+//verb functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void examineFunction(string input, game&, bool& gunFound);
+void useFunction(string input, game&, bool& gunFound, bool& shootable);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void help(string input);
 void helperMessage();
 string getStringInRawMode(int minSize, int maxSize);
 char getRawInput();
-// void spacer();
-// void divider();
-void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound);
+void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound, bool& singleThread, bool& shootable);
 
 
         
 int main() {
-
+  clear();
   game game={"Death in the Dark",{room("Dark Cave",
-                 "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent.",
+                 "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
                 1,
                 2,0,0,0),room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
   2,
   3,1,4,5)},{item("coat", "A heavy brown coat, keeps, you warm, also seem to have many pockets.",{item("gun","A small handheld pistol")})}};
- // game game={"",{},{}};
- // game = game.fetchData();
- // game.displayAllGameData();
+
   int currentRoomId=game.rooms[0].getCurrentRoomId();
   vector<item> inventory;
   inventory = game.items;
@@ -309,7 +315,8 @@ int main() {
   ////main program code
   bool validInput=false;
   bool gunFound=false;
-  bool singleGameThread=true;
+  bool singleThread=true;
+  bool shootable=false;
   greetingModule();
   largeType("Welcome to");
   largeType(game.name);
@@ -319,7 +326,7 @@ int main() {
   game.getRoomByID(currentRoomId).displayDescription();  
   helperMessage();
 
- mainGameLoop(currentRoomId, game, inventory, validInput, gunFound);
+ mainGameLoop(currentRoomId, game, inventory, validInput, gunFound, singleThread, shootable);
  
 
 
@@ -327,13 +334,21 @@ int main() {
 }
 
 
-void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound){
+void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound, bool& singleThread, bool& shootable){
    string userInput="";
-   bool singleGameThread=true;
-    while(singleGameThread==true){
+    singleThread=true;
+    while(singleThread==true){
     cout<<"\n\n>";
     userInput=getStringInRawMode(0,30);
-    useUserInput(userInput, currentRoomId, game, inventory, validInput, gunFound);
+    clear();
+
+    if(userInput.substr(0,2)=="use"){
+      useFunction( userInput,game, gunFound, shootable);
+    }
+    if(userInput.substr(0,7)=="examine"||userInput.substr(0,1)=="x"){
+      examineFunction(userInput, game, gunFound);
+    }
+    useUserInput(userInput, currentRoomId, game, inventory, validInput, gunFound, singleThread);
   }
 }
 
@@ -349,15 +364,13 @@ void greetingModule(){
 //Basic andventure, obviously requires 5 monsters, and 5 rooms, the monsters should require some level of competence to defeat, and they should be in increasing dificulty. 
 //how would they need to be defeated? Common ideas, are riddles?--doesn not sound very fun tbh,
 //maybe, minigames?-- too much code--       
-void useUserInput(string input, int currentRoom, game game, vector<item>& inv, bool& validInput, bool& gunFound){
+void useUserInput(string input, int currentRoom, game& game, vector<item>& inv, bool& validInput, bool& gunFound, bool& singleThread){
   
   //help if statements
-  if(input=="help"||input=="h"){ cout<<"\nTo get the most basic commands type: help basics or help b";validInput=true;};
+  if(input=="help"||input=="h"||input=="-help"||(input.substr(0,4)=="help")){ cout<<"\nTo get the most basic commands type: help basics or help b";validInput=true;};
   if(input=="help basics"||input=="h b"||input=="help b"||input=="h basics"){
     cout<< "\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction.";validInput=true;
   };
-
-
 
 
  //inventory if statments
@@ -387,26 +400,37 @@ void useUserInput(string input, int currentRoom, game game, vector<item>& inv, b
   } 
  
  
- 
- 
   //look if statements
   if(input=="look"||input=="l"){
     cout<<"\n";
     if(currentRoom==1&&game.getRoomByID(currentRoom).descriptionRead==false){
         game.getRoomByID(currentRoom).displayRoomName();
         cout<<"\n\n";
-        game.getRoomByID(currentRoom).displayDescription();  
-        cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
-        game.getRoomByID(currentRoom).toggleDescriptionRead(true);
+        game.getRoomByID(currentRoom).displayDescription(); 
     }
+    if(gunFound==true){
+        cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
+        singleThread=false;
+        game.getRoomByID(currentRoom).toggleDescriptionRead(true);
+    } 
+     
+    
     
   }
-  if(input.substr(0,3)=="look "&&input.size()>5){
+  if(input.substr(0,4)=="look"&&input.size()>4){
       cout<<"I'm sorry I don't know how to do that.";
   }
   
 
-  //examine if statements.
+  
+
+
+
+
+  };
+
+void examineFunction(string input, game& game, bool& gunFound){
+    //examine if statements.
   //self note, must be able to examine all objects, self, inventory,
   //when in a certain room where an object is meant to be the center of focus, most codes should point to it. 
   //must also be able to examine any obvious features of the room, and any things that is implied to exist, even if they are not important
@@ -420,19 +444,29 @@ void useUserInput(string input, int currentRoom, game game, vector<item>& inv, b
  } 
   if(input=="examine pockets"||input=="x pockets"){
       if(gunFound==false){
-     cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small"<<
-     "metal pistol, your are startled at the sight of it";
+     cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small "<<
+     "metal pistol, your are startled at the sight of it.";
      gunFound=true; 
      }else{
          cout<<"There is a gun in there. Might be useful if you find enemies.";
      }
 }
-  if(gunFound==true&&(input=="x gun"||input=="examine gun")){
+  if(gunFound==true&&(input=="x gun"||input=="examine gun"||input=="x pistol"||input=="examine pistol")){
       cout<<"A small pistol seems to be loaded.";
   }  
-  };
+}
 
+void useFunction(string input, game&, bool& gunFound, bool& shootable){
+  //use if statements
 
+  if(input=="use"){
+    cout<<"What would you like to use";
+  }
+  if((gunFound==true)&(input=="use gun"||input=="use pistol"||input=="u gun"||input=="u pistol")){
+    cout<<"What would you like to use the gun for.\nUse connecting words like on or at such as 'verb' on 'noun' or 'verb' at 'noun.";
+  }
+
+}
 
 void helperMessage(){
   cout<< "If you are stuck type -help";

@@ -129,7 +129,7 @@ struct room{
 
 };
 struct player{
-    int lives;
+    int lives=8;
     vector<item> inventory;
 };
 class game{
@@ -473,7 +473,7 @@ void useUserInput( game& game){
         game.getRoomByID(game.currentId).displayDescription(); 
     }
     if(game.gunFound==true){
-        displayObj.currentDisplay.push_back("You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
+        displayObj.currentDisplay.push_back("\rYou suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
         cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
         game.singleThread=false;
         game.getRoomByID(game.currentId).toggleDescriptionRead(true);
@@ -671,7 +671,7 @@ void largeType(string input){
     if(input[i]==32){cout<<"  ";}
       }
   //second layer
-  cout<< "\n";
+  cout<< "\n\r";
 for(int i=0;i<input.size();i++){
     if(input[i]=='A'){cout <<"/~~\\";}
     if(input[i]=='B'){cout<<"|_)";}
@@ -728,7 +728,7 @@ for(int i=0;i<input.size();i++){
     if(input[i]==32){cout<<"  ";}
       }
   //third layer
-   cout<< "\n";
+   cout<< "\n\r";
 for(int i=0;i<input.size();i++){
     if(input[i]=='A'){cout <<"    ";}
     if(input[i]=='B'){cout<<"   ";}
@@ -785,7 +785,7 @@ for(int i=0;i<input.size();i++){
     if(input[i]==32){cout<<"  ";}
     if(input[i]=='\n'){cout<<"\n";}
       }
-  cout << "\n";
+  cout << "\n\r";
 }
 
 void displayVerb(game& game){
@@ -825,16 +825,20 @@ void timerMinutes(game& game){
           //time down
 
           clear();
-          timerString ="\n\n\nTime Left-> "+std::to_string(timerVars.minutesLeft)+":"+std::to_string(timerVars.secondsLeft)+":"+displayMillis+"\n\n";
+          timerString ="\n\n\nTime Left-> "+std::to_string(timerVars.minutesLeft)+":"+std::to_string(timerVars.secondsLeft)+":"+displayMillis+"\n";
            string inputDisplay="\rInput: "+displayObj.liveInput;
             // game.getRoomByID(game.currentId).displayRoomName();
-            if(displayObj.title>0){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n";}
+            if(displayObj.title>0){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n\r";}
             if(displayObj.description>0){game.getRoomByID(displayObj.description).displayDescription();}
             for(int i=0;i<displayObj.currentDisplay.size();i++){
-                cout<<displayObj.currentDisplay[i];
+                cout<<"\n\r"<<displayObj.currentDisplay[i];
             }
-            cout<<"\n\n"<<timerString<<"\n\n";
-            cout<< "> "<<displayObj.liveInput;
+            cout<<"\n\n\r"<<timerString;
+            cout<<"\r";
+            for(int i=0;i<game.player1.lives;i++){
+              cout<<"\033[1;31m❤\033[0m";
+            }
+            cout<< "\n\n\r> "<<displayObj.liveInput;
             cout.flush();
 
           if(timerVars.millileft>0){
@@ -862,7 +866,23 @@ void timerMinutes(game& game){
 
 
     if(timerVars.minutesLeft==0&timerVars.secondsLeft==0&timerVars.millileft==0){
-		system("stty sane");
+      clear();
+      timerString ="\n\n\nTime Left-> "+std::to_string(timerVars.minutesLeft)+":"+std::to_string(timerVars.secondsLeft)+":"+displayMillis+"\n";
+        string inputDisplay="\rInput: "+displayObj.liveInput;
+        // game.getRoomByID(game.currentId).displayRoomName();
+        if(displayObj.title>0){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n\r";}
+        if(displayObj.description>0){game.getRoomByID(displayObj.description).displayDescription();}
+        for(int i=0;i<displayObj.currentDisplay.size();i++){
+            cout<<"\n\r"<<displayObj.currentDisplay[i];
+        }
+        cout<<"\n\n\r"<<timerString;
+        cout<<"\r";
+        for(int i=0;i<game.player1.lives;i++){
+          cout<<"\033[1;31m❤\033[0m";
+        }
+        cout<< "\n\n\r> "<<displayObj.liveInput;
+        cout.flush();
+		    system("stty sane");
         exit(0);
     }
     

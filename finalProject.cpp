@@ -33,11 +33,14 @@ void largeType(string input);
 void clear();
 
 struct displayObject{
-    string liveInput, lastInput, itemDescription;
+    string liveInput, lastInput, itemDescription, invItemDesc;
     int order;
-    bool titleBool, descBool, itDescBool;
+    bool titleBool, descBool, itemDescB, invDesB;
     vector<string> currentDisplay;
     int title, description;
+    void displayItemDescription(){
+
+    }
 
     
 };
@@ -148,6 +151,14 @@ struct player{
     };
     void setLives(int l){
         lives=l;
+    };
+
+    void getItemsDescByName(string Nam){
+        for(int i=0;i<inventory.size();i++){
+            if(inventory[i].name==Nam){
+                cout<<inventory[i].description;
+            }
+        }
     };
 };
 
@@ -399,7 +410,7 @@ void mainGameLoop(game& game){
     displayObj.currentDisplay={};
     displayObj.title=0;
     displayObj.description=0;
-
+    skipFunctions=false;
     if(game.input.find("use")!=string::npos){
       useFunction(game);
       skipFunctions=true;
@@ -407,7 +418,6 @@ void mainGameLoop(game& game){
     if(game.input.find("examine")!=string::npos||game.input.substr(0,1)=="x"){
       examineFunction(game);
       skipFunctions=true;
-
     }
 
     if(skipFunctions==false){useUserInput(game);}
@@ -442,42 +452,50 @@ void greetingModule(){
 //how would they need to be defeated? Common ideas, are riddles?--doesn not sound very fun tbh,
 //maybe, minigames?-- too much code--       
 void useUserInput( game& game){
-    displayObj.titleBool, displayObj.descBool, displayObj.itDescBool = false;
+    displayObj.titleBool =false;
+    displayObj.descBool = false;
+    displayObj.invDesB = false;
+    displayObj.itemDescB = false;
     displayObj.currentDisplay={};
+    vector<string> allowedInput;
   //help if statements
-  vector<string> allowedInput={"help","h","-help","-h"};
+
+    allowedInput={"help basics","h b","help b","h basics"};
+
   for(int i=0;i<allowedInput.size();i++){
-       if(game.input.find(allowedInput[i])!=string::npos){ 
-        cout<<"\nTo get the most basic commands type: help basics or help b";
-        game.validInput=true;
-        }
-  }
-   allowedInput={"help basics","h b","help b","h basics"};
-  for(int i=0;i<allowedInput.size();i++){
-       if(game.input.find(allowedInput[i])!=string::npos){ 
+       if(game.input==(allowedInput[i])){ 
         displayObj.currentDisplay[0]={"\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction."};
         cout<<displayObj.currentDisplay[0];
         game.validInput=true;
+        return;
+
+        }
+  }
+   allowedInput={"help","h","-help","-h"};
+
+  for(int i=0;i<allowedInput.size();i++){
+       if(game.input==(allowedInput[i])){ 
+        cout<<"\nTo get the most basic commands type: help basics or help b";
+        game.validInput=true;
+        return;
         }
   }
 
+
  //inventory if statments
  allowedInput={"inv","i","inventory","in","inve"};
+    
    for(int i=0;i<allowedInput.size();i++){
-       if(game.input.size()>=allowedInput[i].size()){
-       if(game.input.find(allowedInput[i])!=string::npos){ 
+       if(game.input==(allowedInput[i])){ 
           displayObj.currentDisplay.push_back("Currently your inventory contains:\n");               
-         cout<<displayObj.currentDisplay[0];
-         int counter=1;
+          cout<<displayObj.currentDisplay[0];
+          int counter=1;
      
      for(int i=0;i<game.player1.inventory.size();i++){
-        if(game.input.size()>=allowedInput[i].size()){
-
-       }
          if(game.player1.inventory[i].name!="gun"||game.gunFound==false){
             displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n"); 
-           cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
-           counter++;
+            cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
+            counter++;
          }else if(game.gunFound==true){
              displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n");
              cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
@@ -497,7 +515,7 @@ void useUserInput( game& game){
             }
         }
               
-     }
+     
      game.validInput=true;
         }}
   }
@@ -506,8 +524,7 @@ void useUserInput( game& game){
   //look if statements
   allowedInput={"look","l","look around","l around"};
     for(int i=0;i<allowedInput.size();i++){
-       if(game.input.size()>=allowedInput[i].size()){
-       if(game.input.find(allowedInput[i])!=string::npos){ 
+       if(game.input==(allowedInput[i])){ 
        cout<<"\n";
         if(game.currentId==1&&game.getRoomByID(game.currentId).descriptionRead==false){
             game.getRoomByID(game.currentId).displayRoomName();
@@ -524,7 +541,7 @@ void useUserInput( game& game){
             game.getRoomByID(game.currentId).toggleDescriptionRead(true);
         } 
         game.validInput=true;
-        }}
+        }
   }
 
   if(game.input.substr(0,4)=="look"&&game.input.size()>4&&game.validInput==false){
@@ -546,7 +563,8 @@ void examineFunction(game& game){
   //I need to also figure out a way to manage the inventory display in a more effective way. Instead of setting game items to inventory, I should  add one item at a time, and start with the items already on me. 
   displayObj.titleBool= false;
   displayObj.descBool = false;
-  displayObj.itDescBool = false;
+  displayObj.invDesB = false;
+  displayObj.itemDescB=false;
   displayObj.currentDisplay={};
   if(game.input=="examine"||game.input=="x"){
     cout<<"\n\nWhat would you like to examine?";
@@ -554,9 +572,9 @@ void examineFunction(game& game){
     return;
   }
   if(game.input=="examine coat"||game.input=="x coat"){
-     game.getRoomByID(game.currentId).getItemsDescByName("coat");
+     game.player1.getItemsDescByName("coat");
      displayObj.itemDescription=("coat");
-     displayObj.itDescBool=true;
+     displayObj.invDesB=true;
      return;
  } 
   if(game.input=="examine pockets"||game.input=="x pockets"){
@@ -583,13 +601,27 @@ void examineFunction(game& game){
 
             game.getRoomByID(game.currentId).getItemsDescByName(game.getRoomByID(game.currentId).items[i].name);
             displayObj.itemDescription=(game.getRoomByID(game.currentId).items[i].name);
-            displayObj.itDescBool=true;
+            displayObj.itemDescB=true;
+            return;
       }
+  }
+  for(int i=0;i<game.player1.inventory.size();i++){
+      if(game.input.size()<=0){return;}
+      if(game.input.size()>=game.player1.inventory[i].name.size()){
+      if((game.input.find("examine")!=string::npos||game.input.substr(0,1).find("x")!=string::npos)&&(game.player1.inventory[i].name.find(game.input)!=string::npos||game.player1.inventory[i].name.find(game.input)!=string::npos)){
+          cout<<game.player1.inventory[i].description;
+          displayObj.invDesB=true;
+          displayObj.invItemDesc=game.player1.inventory[i].name;
+          return;
+      }}
   }
 }
 
 void useFunction(game& game){
-    displayObj.titleBool, displayObj.descBool, displayObj.itDescBool = false;
+     displayObj.titleBool= false;
+  displayObj.descBool = false;
+  displayObj.invDesB = false;
+  displayObj.itemDescB=false;
     displayObj.currentDisplay={};
   //use if statements
 
@@ -901,11 +933,12 @@ void timerMinutes(game& game){
             // game.getRoomByID(game.currentId).displayRoomName();
             if(displayObj.titleBool==true){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n\r";}
             if(displayObj.descBool==true){game.getRoomByID(displayObj.description).displayDescription();}
-            if(displayObj.itDescBool==true){game.getRoomByID(game.currentId).getItemsDescByName(displayObj.itemDescription);}
+            if(displayObj.invDesB==true){game.player1.getItemsDescByName(displayObj.itemDescription);}
+            if(displayObj.itemDescB==true){game.getRoomByID(game.currentId).getItemsDescByName(displayObj.itemDescription);}
             cout<<"\n";
             for(int i=0;i<displayObj.currentDisplay.size();i++){
                 cout<<displayObj.currentDisplay[i];
-            }
+            }  
             cout<<"\n\n\r"<<timerString;
             cout<<"\r";
             for(int i=0;i<game.player1.lives;i++){

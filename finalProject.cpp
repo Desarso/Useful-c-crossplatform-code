@@ -8,6 +8,8 @@
 #include <fstream>
 #include <algorithm>
 #include <limits>
+#include <thread>
+#include <chrono>
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
 #ifdef __MINGW32__ 
        #include <conio.h>
@@ -17,6 +19,8 @@ using std::cout;
 using std::string;
 using std::vector;
 using std::fstream;
+// using std::ref;
+// using std::thread;
 
 //I want the dungeon game to use verbs ans stuff, so I'm thinking that the rooms can have verbs
 //and then the monsters can also have verbs, and stuff
@@ -28,6 +32,16 @@ const string app="app";
 void largeType(string input);
 void clear();
 
+struct displayObject{
+    string liveInput, lastInput;
+    vector<string> currentDisplay;
+    int title;
+    int description;
+    
+};
+struct timerVariables{
+    int minutesLeft,secondsLeft, millileft;
+};
 struct item{
   string name;
   string description;
@@ -114,11 +128,23 @@ struct room{
   }
 
 };
+struct player{
+    int lives;
+    vector<item> inventory;
+};
 class game{
  
   
 public:
-    vector<room> rooms;
+  string input;
+  int currentId=1;
+  bool validInput=false;
+  bool gunFound=false;
+  bool singleThread=true;
+  bool shootable=false;
+  bool multiThreadingOn=false;
+  player player1;
+  vector<room> rooms;
   string name; 
   vector<item> items; 
   game(string n, vector<room> r, vector<item> i){
@@ -282,24 +308,36 @@ void game::getItemsDescByName(string Nam){
 void greetingModule();
 
 //this function is help, i and look. Need seperate functions for more complex tasks.
-void useUserInput(string input, int currentRoomID, game&, vector<item>&, bool& validInput, bool& gunFound, bool& singleThread);
+void useUserInput(game&);
 
 
 //verb functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void examineFunction(string input, game&, bool& gunFound);
-void useFunction(string input, game&, bool& gunFound, bool& shootable);
+void examineFunction(game&);
+void useFunction(game&);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//this is where I gave up and started using global variables
+displayObject displayObj;
+timerVariables timerVars;
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void help(string input);
 void helperMessage();
 string getStringInRawMode(int minSize, int maxSize);
 char getRawInput();
-void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound, bool& singleThread, bool& shootable);
+void mainGameLoop(game& game);
+void multiThreadProgram(game& game);
+void timerMinutes(game&);
+void displayVerb(game&);
 
 
-        
+
+
+
+
 int main() {
   clear();
+  player player1;
   game game={"Death in the Dark",{room("Dark Cave",
                  "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
                 1,
@@ -309,14 +347,10 @@ int main() {
   3,1,4,5)},{item("coat", "A heavy brown coat, keeps, you warm, also seem to have many pockets.",{item("gun","A small handheld pistol")})}};
 
   int currentRoomId=game.rooms[0].getCurrentRoomId();
-  vector<item> inventory;
-  inventory = game.items;
+  game.player1.inventory = game.items;
 
   ////main program code
-  bool validInput=false;
-  bool gunFound=false;
-  bool singleThread=true;
-  bool shootable=false;
+ 
   greetingModule();
   largeType("Welcome to");
   largeType(game.name);
@@ -325,8 +359,7 @@ int main() {
   cout<<"\n\n";
   game.getRoomByID(currentRoomId).displayDescription();  
   helperMessage();
-
- mainGameLoop(currentRoomId, game, inventory, validInput, gunFound, singleThread, shootable);
+  mainGameLoop(game);
  
 
 
@@ -334,24 +367,43 @@ int main() {
 }
 
 
-void mainGameLoop(int& currentRoomId, game& game, vector<item>& inventory, bool& validInput, bool& gunFound, bool& singleThread, bool& shootable){
-   string userInput="";
-    singleThread=true;
-    while(singleThread==true){
+void mainGameLoop(game& game){
+    while(2){
+    if(game.singleThread==false&&game.multiThreadingOn==false){
+        multiThreadProgram(game);
+    }
     cout<<"\n\n>";
-    userInput=getStringInRawMode(0,30);
+    game.input=getStringInRawMode(0,30);
     clear();
+    displayObj.currentDisplay={};
+    displayObj.title=0;
+    displayObj.description=0;
 
-    if(userInput.substr(0,2)=="use"){
-      useFunction( userInput,game, gunFound, shootable);
+    if(game.input.substr(0,2)=="use"){
+      useFunction(game);
     }
-    if(userInput.substr(0,7)=="examine"||userInput.substr(0,1)=="x"){
-      examineFunction(userInput, game, gunFound);
+    if(game.input.substr(0,7)=="examine"||game.input.substr(0,1)=="x"){
+      examineFunction(game);
     }
-    useUserInput(userInput, currentRoomId, game, inventory, validInput, gunFound, singleThread);
+    useUserInput(game);
   }
+  
 }
 
+void multiThreadProgram(game& game){
+    game.multiThreadingOn=true;
+    string input;
+    string liveInput;
+    int minutes=3;
+    int seconds=0;
+    int miliSeconds=0;
+    timerVars.secondsLeft=30;
+    std::thread mainThread(mainGameLoop, std::ref(game));;
+    std::thread timeout(timerMinutes, std::ref(game));
+
+    mainThread.join();
+    timeout.join();
+}
 
 
 void greetingModule(){
@@ -364,105 +416,116 @@ void greetingModule(){
 //Basic andventure, obviously requires 5 monsters, and 5 rooms, the monsters should require some level of competence to defeat, and they should be in increasing dificulty. 
 //how would they need to be defeated? Common ideas, are riddles?--doesn not sound very fun tbh,
 //maybe, minigames?-- too much code--       
-void useUserInput(string input, int currentRoom, game& game, vector<item>& inv, bool& validInput, bool& gunFound, bool& singleThread){
+void useUserInput( game& game){
   
   //help if statements
-  if(input=="help"||input=="h"||input=="-help"||(input.substr(0,4)=="help")){ cout<<"\nTo get the most basic commands type: help basics or help b";validInput=true;};
-  if(input=="help basics"||input=="h b"||input=="help b"||input=="h basics"){
-    cout<< "\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction.";validInput=true;
+  if(game.input=="help"||game.input=="h"||game.input=="-help"||(game.input.substr(0,4)=="help")){ cout<<"\nTo get the most basic commands type: help basics or help b";game.validInput=true;};
+  if(game.input=="help basics"||game.input=="h b"||game.input=="help b"||game.input=="h basics"){
+      displayObj.currentDisplay[0]={"\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction."};
+    cout<<displayObj.currentDisplay[0];
+    game.validInput=true;
   };
 
 
  //inventory if statments
-  if(input=="i"||input=="inventory"){
-      cout<<"Currently your invetory contains:\n";
+  if(game.input=="i"||game.input=="inventory"){
+      displayObj.currentDisplay.push_back("Currently your inventory contains:\n");               
+      cout<<displayObj.currentDisplay[0];
       int counter=1;
-     for(int i=0;i<inv.size();i++){
-         if(inv[i].name!="gun"||gunFound==false){
-           cout<<counter<<". "<<inv[i].name<<"\n";
+     
+     for(int i=0;i<game.player1.inventory.size();i++){
+         if(game.player1.inventory[i].name!="gun"||game.gunFound==false){
+            displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n"); 
+           cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
            counter++;
-         }else if(gunFound==true){
-             cout<<counter<<". "<<inv[i].name<<"\n";
+         }else if(game.gunFound==true){
+             displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n");
+             cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
              counter++;
          }
-        if(inv[i].subObjects.size()>0){
-            for(int j=0;j<inv[i].subObjects.size();j++){
-                if(gunFound==false&&inv[i].subObjects[j].name!="gun"){
-                  cout<<counter<<". "<<inv[i].subObjects[j].name<<"\n";
+        if(game.player1.inventory[i].subObjects.size()>0){
+            for(int j=0;j<game.player1.inventory[i].subObjects.size();j++){
+                if(game.gunFound==false&&game.player1.inventory[i].subObjects[j].name!="gun"){
+                  displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].subObjects[j].name+"\n");
+                  cout<<counter<<". "<<game.player1.inventory[i].subObjects[j].name<<"\n";
                   counter++;
-                }else if(gunFound==true){
-                    cout<<counter<<". "<<inv[i].subObjects[j].name<<"\n";
+                }else if(game.gunFound==true){
+                    displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].subObjects[j].name+"\n");
+                    cout<<counter<<". "<<game.player1.inventory[i].subObjects[j].name<<"\n";
                 }
                 
             }
         }
+              
      }
+    
   } 
  
  
   //look if statements
-  if(input=="look"||input=="l"){
+  if(game.input=="look"||game.input=="l"){
     cout<<"\n";
-    if(currentRoom==1&&game.getRoomByID(currentRoom).descriptionRead==false){
-        game.getRoomByID(currentRoom).displayRoomName();
+    if(game.currentId==1&&game.getRoomByID(game.currentId).descriptionRead==false){
+        game.getRoomByID(game.currentId).displayRoomName();
+        displayObj.title=game.currentId;
         cout<<"\n\n";
-        game.getRoomByID(currentRoom).displayDescription(); 
+        displayObj.description=game.currentId;
+        game.getRoomByID(game.currentId).displayDescription(); 
     }
-    if(gunFound==true){
+    if(game.gunFound==true){
+        displayObj.currentDisplay.push_back("You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
         cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
-        singleThread=false;
-        game.getRoomByID(currentRoom).toggleDescriptionRead(true);
+        game.singleThread=false;
+        game.getRoomByID(game.currentId).toggleDescriptionRead(true);
     } 
      
     
     
   }
-  if(input.substr(0,4)=="look"&&input.size()>4){
+  if(game.input.substr(0,4)=="look"&&game.input.size()>4){
+      displayObj.currentDisplay.push_back("I'm sorry I don't know how to do that.");
       cout<<"I'm sorry I don't know how to do that.";
   }
   
-
-  
-
 
 
 
   };
 
-void examineFunction(string input, game& game, bool& gunFound){
+void examineFunction(game& game){
     //examine if statements.
   //self note, must be able to examine all objects, self, inventory,
   //when in a certain room where an object is meant to be the center of focus, most codes should point to it. 
   //must also be able to examine any obvious features of the room, and any things that is implied to exist, even if they are not important
   //the rooms should get more intricate over time, meaning that the amount of items should increase, last room should have at least 10 items, embedded items are optional.
   //I need to also figure out a way to manage the inventory display in a more effective way. Instead of setting game items to inventory, I should  add one item at a time, and start with the items already on me. 
-  if(input=="examine"||input=="x"){
+  if(game.input=="examine"||game.input=="x"){
     cout<<"\n\nWhat would you like to examine?";
   }
-  if(input=="examine coat"||input=="x coat"){
+  if(game.input=="examine coat"||game.input=="x coat"){
      game.getItemsDescByName("coat");
  } 
-  if(input=="examine pockets"||input=="x pockets"){
-      if(gunFound==false){
+  if(game.input=="examine pockets"||game.input=="x pockets"){
+      if(game.gunFound==false){
      cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small "<<
      "metal pistol, your are startled at the sight of it.";
-     gunFound=true; 
+     game.gunFound=true; 
      }else{
          cout<<"There is a gun in there. Might be useful if you find enemies.";
      }
 }
-  if(gunFound==true&&(input=="x gun"||input=="examine gun"||input=="x pistol"||input=="examine pistol")){
+  if(game.gunFound==true&&(game.input=="x gun"||game.input=="examine gun"||game.input=="x pistol"||game.input=="examine pistol")){
       cout<<"A small pistol seems to be loaded.";
   }  
 }
 
-void useFunction(string input, game&, bool& gunFound, bool& shootable){
+void useFunction(game& game){
   //use if statements
 
-  if(input=="use"){
+  if(game.input=="use"){
     cout<<"What would you like to use";
   }
-  if((gunFound==true)&(input=="use gun"||input=="use pistol"||input=="u gun"||input=="u pistol")){
+  if((game.gunFound==true)&(game.input=="use gun"||game.input=="use pistol"||game.input=="u gun"||game.input=="u pistol")){
     cout<<"What would you like to use the gun for.\nUse connecting words like on or at such as 'verb' on 'noun' or 'verb' at 'noun.";
   }
 
@@ -471,14 +534,16 @@ void useFunction(string input, game&, bool& gunFound, bool& shootable){
 void helperMessage(){
   cout<< "If you are stuck type -help";
 }
+
 string getStringInRawMode(int minSize, int maxSize){
-      string input="";
+      string insideinput="";
       // cout<<input.size();
       int rawInput;
       bool inputReceived=false;
     while(inputReceived==false) {
 
         rawInput = getRawInput();
+        
       //I output rawInput becuase I need to echo manually
         cout<< char(rawInput);
         // cout<<"\nRaw Input: "<<rawInput;
@@ -486,25 +551,33 @@ string getStringInRawMode(int minSize, int maxSize){
     
       //console checks to see if I pressed anything but the esc or enter key.
         if(rawInput != 10 && rawInput!= 27 && rawInput != 127 && rawInput!=13&& rawInput!=8){
-          
-          input=input+char(rawInput);
+            displayObj.liveInput=displayObj.liveInput+char(rawInput);
+          insideinput=insideinput+char(rawInput);
           // cout<<input.size();
           }
      //if esc is pressed the program ends.
         if(rawInput == 27) {
     //cleared the console and end the program.
            // cout<< "I pressed esc;";
-          exit(0); 
+          exit(0);
         } 
+
+
       if(rawInput == 13) {
     //if space bar is pressed start a new game
-         cout<<"\b \b";
+        //  cout<<"\b \b";
          inputReceived=true;
-    
         cout<<"\n";
+          // clear();
+          // cout<<insideinput;
+          // exit(0);
+          displayObj.liveInput="ss";
+          displayObj.liveInput="";
         //here I reset all console settings to default
-         return input;
+         return insideinput;
         } 
+
+        //backspace
       if(rawInput == 127||rawInput==8){
        
         // cout<< "input is: |"<< input;
@@ -512,10 +585,16 @@ string getStringInRawMode(int minSize, int maxSize){
           #ifdef __linux__
             cout<<"\b";
           #endif
-        if(input.size()>0){
+        // if(liveInput.size()>0){
+           
+        // }
+        if(insideinput.size()>0||displayObj.liveInput.size()>0){
            cout<<" \b";
-           input = input.substr(0,input.size()-1);
+             displayObj.liveInput = displayObj.liveInput.substr(0,displayObj.liveInput.size()-1);
+           insideinput=insideinput.substr(0,insideinput.size()-1);
+           
         }else{
+         
             cout<<" ";
         }
         // if(input.size()==0){
@@ -532,6 +611,7 @@ string getStringInRawMode(int minSize, int maxSize){
   
   return "";
 };
+
  
 void largeType(string input){
   //first layer
@@ -707,6 +787,89 @@ for(int i=0;i<input.size();i++){
       }
   cout << "\n";
 }
+
+void displayVerb(game& game){
+    game.getRoomByID(game.currentId).displayRoomName();
+    for(int i=0;i<displayObj.currentDisplay.size();i++){
+        cout<<displayObj.currentDisplay[i];
+    }
+};
+
+void timerMinutes(game& game){
+    int minutes=0;
+    int seconds=0;
+    int milliSeconds=0;
+    string displayMillis="00";
+    string timerString;
+    auto start = std::chrono::steady_clock::now();
+    int current_ms_elapsed=0;
+    while(2){
+    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto end = std::chrono::steady_clock::now();
+ 
+         if((std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())%100==0&&(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())!=current_ms_elapsed){
+          current_ms_elapsed++;
+          milliSeconds++;
+   
+    
+         
+          if(milliSeconds>10){
+            milliSeconds=0;
+            seconds++;
+            }
+          if(seconds>=60){
+            seconds=0;
+            minutes++;
+          }
+
+          //time down
+
+          clear();
+          timerString ="\n\n\nTime Left-> "+std::to_string(timerVars.minutesLeft)+":"+std::to_string(timerVars.secondsLeft)+":"+displayMillis+"\n\n";
+           string inputDisplay="\rInput: "+displayObj.liveInput;
+            // game.getRoomByID(game.currentId).displayRoomName();
+            if(displayObj.title>0){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n";}
+            if(displayObj.description>0){game.getRoomByID(displayObj.description).displayDescription();}
+            for(int i=0;i<displayObj.currentDisplay.size();i++){
+                cout<<displayObj.currentDisplay[i];
+            }
+            cout<<"\n\n"<<timerString<<"\n\n";
+            cout<< "> "<<displayObj.liveInput;
+            cout.flush();
+
+          if(timerVars.millileft>0){
+            displayMillis="0"+std::to_string(timerVars.millileft-1);
+            timerVars.millileft--;}
+
+            if(timerVars.millileft==0&&timerVars.secondsLeft>0){
+            timerVars.secondsLeft--;
+            timerVars.millileft=10;
+          }
+
+          if(timerVars.secondsLeft==0&&timerVars.millileft==0&&timerVars.minutesLeft>0){
+            timerVars.minutesLeft--;
+            timerVars.secondsLeft=60;
+            timerVars.millileft=10;
+            }
+    //                 cout<<"this works";
+    // exit(0);
+
+          // if(current_ms_elapsed>0){milliSeconds=milliSeconds-current_ms_elapsed;}
+      
+      
+      }
+
+
+
+    if(timerVars.minutesLeft==0&timerVars.secondsLeft==0&timerVars.millileft==0){
+		system("stty sane");
+        exit(0);
+    }
+    
+}
+}
+
+
 
 
 

@@ -75,18 +75,25 @@ struct room{
   bool descriptionRead=false;
   bool monsterSpawn=false;
   bool monsterKilled=false;
-  room(string name, string desc, int id, int n, int s, int e, int w){
+  vector<item> items;
+  room(string name, string desc, int id, vector<item> ite, int n, int s, int e, int w){
     room_name=name;
     room_description=desc;
     room_id=id;
+    items=ite;
     N=n;
     S=s;
     E=e;
     W=w;
-   
-
   }
 
+  void getItemsDescByName(string Nam){
+    for(int i=0;i<items.size();i++){
+        if(items[i].name==Nam){
+            cout<<items[i].description;
+        }
+    }
+}
   int getNextRoomId(string cords){
        if(cords=="N"||cords=="n"){return N;}
        if(cords=="E"||cords=="E"){return E;}
@@ -129,9 +136,18 @@ struct room{
 
 };
 struct player{
+    string name;
     int lives=8;
     vector<item> inventory;
+    player(string n, vector<item> i){
+        name=n;
+        inventory=i;
+    };
+    void setLives(int l){
+        lives=l;
+    };
 };
+
 class game{
  
   
@@ -143,167 +159,162 @@ public:
   bool singleThread=true;
   bool shootable=false;
   bool multiThreadingOn=false;
-  player player1;
+  player player1={"",{}};
   vector<room> rooms;
-  string name; 
-  vector<item> items; 
-  game(string n, vector<room> r, vector<item> i){
+  string name;
+  game(string n, vector<room> r){
     name=n;
     rooms=r;
-    items=i;
-  }
+  };
   room getRoomByID(int ID);
-  game fetchData();
-  void writeData(string mode);
-  void displayAllGameData();
-  vector<item> getItems();
-  void getItemsDescByName(string Nam); 
+//   game fetchData();
+//   void writeData(string mode);
+//   void displayAllGameData();
+//   vector<item> getItems();
+//   void getItemsDescByName(string Nam); 
 };
 //this function serializes the game object data to an external file
-void game::writeData(string mode){
-  const string myName= "data.dat";
-  const string end="~";
-  
-  fstream myFile;
-  if(mode=="app"){myFile.open(DEFAULT_FILE_NAME, std::ios::app);}
-  if(mode=="out"){myFile.open(DEFAULT_FILE_NAME,std::ios::out);}
-   if (myFile.is_open()){
-     myFile<<"`A Dark Cave`~";
-     for(int i=0;i<rooms.size();i++){
-       myFile<<"$"<<rooms[i].room_name<<end
-       <<rooms[i].room_id<<end
-       <<rooms[i].room_description<<end
-       <<rooms[i].N<<"|"<<rooms[i].S<<"|"<<rooms[i].E<<"|"<<rooms[i].W<<end;
-     }
-     for(int i=0;i<items.size();i++){
-       myFile<<"%"<<items[i].name<<end
-       <<items[i].description<<end;
-       for(int j=0;j<items[i].subObjects.size();j++){
-         myFile<<"*"<<items[i].subObjects[j].name<<end
-         <<items[i].subObjects[j].description<<end;
-       }
-     }
-     myFile.close();
-   }
-  
-}
-//this horribly function deserializes the object data, it's all by hand, I'm sure there's better ways to do this, but I couldn't find any built in short libraries.
-game game::fetchData(){
-   fstream fileRead;
-   string line;
-   int roomsIndex=0;
-   int itemsIndex=0;
-   int index =0;
-   string roomName,roomDescription,itemName,itemDesc,subItemName, subItemDesc;
-   int roomId;
-   int N,S,W,E;
-   vector<game> games={};
-   vector<room> roomHelper={};
-   vector<item> itemHelper={};
-   vector<item> subItemsHelper={};
-  
-   
-   int subObjectsIndex;
-   fileRead.open(DEFAULT_FILE_NAME, std::ios::in);
-   if(fileRead.is_open()){
-     while(getline(fileRead, line,'~')){
-        if(!line.size()){cout << "empty file";fileRead.close(); break;}
-        if(line[0]=='`'){
-          name=line.substr(1,line.size()-2);
-          getline(fileRead, line,'~');
-          index++;
-          index=1;
-            }//get game name
-       
-        if(line[0]=='$'){  
-          roomName=line.substr(1,line.size());
-          getline(fileRead, line,'~');
-          index=1;
-          if(index%3==1||index==1){
-            roomId=stoi(line);
-             getline(fileRead, line,'~');
-             index++;
-        }
-          if(index%3==2||index==2){
-            roomDescription=line;
-            getline(fileRead, line,'~');
-            index++;
-          }
-          if(index%3==0||index==3){
-            N=stoi(line.substr(0,1));
-            S=stoi(line.substr(2,3));
-            E=stoi(line.substr(4,5));
-            W=stoi(line.substr(6,7));
-            roomHelper.push_back(room(roomName, roomDescription, roomId,N,S,E,W));
-          }
-          roomsIndex++;
-          index=1;
-         }//get rooms
-    
-        if(line[0]=='%'){
-          index=1;
-          if(index%2==1||index==1){
-            itemName=line.substr(1,line.size());
-            getline(fileRead, line,'~');
-            index++;
-        }//item name
-          if(index%2==0||index==2){
-            itemDesc=line.substr(1,line.size());
-            getline(fileRead, line,'~');
-            index++;
-          }//item desc
-          
-          while(line[0]=='*'){
-             subObjectsIndex=0;
-             if(index%2==1||index==1){
-            subItemName=line.substr(1,line.size());
-            getline(fileRead, line,'~');
-            index++;
-        }
-          if(index%2==0||index==2){
-            subItemDesc=line.substr(1,line.size());
-            getline(fileRead, line,'~');
-            index++;
-          }
-            subItemsHelper.push_back(item(subItemName,subItemDesc));
-            subObjectsIndex++;
-          }//get sub items
-          itemHelper.push_back(item(itemName, itemDesc, subItemsHelper));
-          subItemsHelper={};
-          itemsIndex++;
-          index=1;
-         }//get items and subItems
-       
-        index++;
-      }
-     games.push_back(game(roomName,roomHelper, itemHelper));
-     fileRead.close();
-     
-   };
-  return games[0];
-}
+
+// void game::writeData(string mode){
+//   const string myName= "data.dat";
+//   const string end="~";
+//   fstream myFile;
+//   if(mode=="app"){myFile.open(DEFAULT_FILE_NAME, std::ios::app);}
+//   if(mode=="out"){myFile.open(DEFAULT_FILE_NAME,std::ios::out);}
+//    if (myFile.is_open()){
+//      myFile<<"`A Dark Cave`~";
+//      for(int i=0;i<rooms.size();i++){
+//        myFile<<"$"<<rooms[i].room_name<<end
+//        <<rooms[i].room_id<<end
+//        <<rooms[i].room_description<<end
+//        <<rooms[i].N<<"|"<<rooms[i].S<<"|"<<rooms[i].E<<"|"<<rooms[i].W<<end;
+//      }
+//      for(int i=0;i<rooms.items.size();i++){
+//        myFile<<"%"<<rooms.items[i].name<<end
+//        <<items[i].description<<end;
+//        for(int j=0;j<items[i].subObjects.size();j++){
+//          myFile<<"*"<<items[i].subObjects[j].name<<end
+//          <<items[i].subObjects[j].description<<end;
+//        }
+//      }
+//      myFile.close();
+//    }
+// };
+
+// //this horribly function deserializes the object data, it's all by hand, I'm sure there's better ways to do this, but I couldn't find any built in short libraries.
+
+// game game::fetchData(){
+//    fstream fileRead;
+//    string line;
+//    int roomsIndex=0;
+//    int itemsIndex=0;
+//    int index =0;
+//    string roomName,roomDescription,itemName,itemDesc,subItemName, subItemDesc;
+//    int roomId;
+//    int N,S,W,E;
+//    vector<game> games={};
+//    vector<room> roomHelper={};
+//    vector<item> itemHelper={};
+//    vector<item> subItemsHelper={};
+//    int subObjectsIndex;
+//    fileRead.open(DEFAULT_FILE_NAME, std::ios::in);
+//    if(fileRead.is_open()){
+//      while(getline(fileRead, line,'~')){
+//         if(!line.size()){cout << "empty file";fileRead.close(); break;}
+//         if(line[0]=='`'){
+//           name=line.substr(1,line.size()-2);
+//           getline(fileRead, line,'~');
+//           index++;
+//           index=1;
+//             }//get game name
+//         if(line[0]=='$'){  
+//           roomName=line.substr(1,line.size());
+//           getline(fileRead, line,'~');
+//           index=1;
+//           if(index%3==1||index==1){
+//             roomId=stoi(line);
+//              getline(fileRead, line,'~');
+//              index++;
+//         }
+//           if(index%3==2||index==2){
+//             roomDescription=line;
+//             getline(fileRead, line,'~');
+//             index++;
+//           }
+//           if(index%3==0||index==3){
+//             N=stoi(line.substr(0,1));
+//             S=stoi(line.substr(2,3));
+//             E=stoi(line.substr(4,5));
+//             W=stoi(line.substr(6,7));
+//             roomHelper.push_back(room(roomName, roomDescription, roomId,N,S,E,W));
+//           }
+//           roomsIndex++;
+//           index=1;
+//          }//get rooms
+//         if(line[0]=='%'){
+//           index=1;
+//           if(index%2==1||index==1){
+//             itemName=line.substr(1,line.size());
+//             getline(fileRead, line,'~');
+//             index++;
+//         }//item name
+//           if(index%2==0||index==2){
+//             itemDesc=line.substr(1,line.size());
+//             getline(fileRead, line,'~');
+//             index++;
+//           }//item desc
+//           while(line[0]=='*'){
+//              subObjectsIndex=0;
+//              if(index%2==1||index==1){
+//             subItemName=line.substr(1,line.size());
+//             getline(fileRead, line,'~');
+//             index++;
+//         }
+//           if(index%2==0||index==2){
+//             subItemDesc=line.substr(1,line.size());
+//             getline(fileRead, line,'~');
+//             index++;
+//           }
+//             subItemsHelper.push_back(item(subItemName,subItemDesc));
+//             subObjectsIndex++;
+//           }//get sub items
+//           itemHelper.push_back(item(itemName, itemDesc, subItemsHelper));
+//           subItemsHelper={};
+//           itemsIndex++;
+//           index=1;
+//          }//get items and subItems
+//         index++;
+//       }
+//      games.push_back(game(roomName,roomHelper, itemHelper));
+//      fileRead.close();
+//    };
+//   return games[0];
+// }
+
+
 room game::getRoomByID(int ID){
     return rooms[ID-1];
   }
-void game::displayAllGameData(){
-  cout<<"GAME NAME: "<<name<<"\n\n";
-  for(int i=0;i<rooms.size();i++){
-    rooms[i].displayRoomData();
-  }
-  for(int i=0;i<items.size();i++){
-    items[i].displayItemData();
-  }
-}
-vector<item> game::getItems(){
-  return items;
-};
-void game::getItemsDescByName(string Nam){
-    for(int i=0;i<items.size();i++){
-        if(items[i].name==Nam){
-            cout<<items[i].description;
-        }
-    }
-}
+
+// void game::displayAllGameData(){
+//   cout<<"GAME NAME: "<<name<<"\n\n";
+//   for(int i=0;i<rooms.size();i++){
+//     rooms[i].displayRoomData();
+//   }
+//   for(int i=0;i<items.size();i++){
+//     items[i].displayItemData();
+//   }
+// }
+// vector<item> game::getItems(){
+//   return items;
+// };
+// void game::getItemsDescByName(string Nam){
+//     for(int i=0;i<items.size();i++){
+//         if(items[i].name==Nam){
+//             cout<<items[i].description;
+//         }
+//     }
+// }
 //function declarations
 void greetingModule();
 
@@ -337,17 +348,23 @@ void displayVerb(game&);
 
 int main() {
   clear();
-  player player1;
+  string playerName;
+  cout<<"Before we being, please input your name.";
+  playerName=getStringInRawMode(20,20);
+  player player1=player(playerName, {item("coat", "A heavy brown coat, keeps, you warm, also seem to have many pockets.",{item("gun","A small handheld pistol")})} );
+
+
   game game={"Death in the Dark",{room("Dark Cave",
                  "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
-                1,
+                1,{item("passage","A small passage way to another room.")},
                 2,0,0,0),room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
-  2,
-  3,1,4,5)},{item("coat", "A heavy brown coat, keeps, you warm, also seem to have many pockets.",{item("gun","A small handheld pistol")})}};
+  2,{},
+  3,1,4,5)}};
+  game.player1=player1;
 
   int currentRoomId=game.rooms[0].getCurrentRoomId();
-  game.player1.inventory = game.items;
+//   game.player1.inventory = game.items;
 
   ////main program code
  
@@ -503,7 +520,7 @@ void examineFunction(game& game){
     cout<<"\n\nWhat would you like to examine?";
   }
   if(game.input=="examine coat"||game.input=="x coat"){
-     game.getItemsDescByName("coat");
+     game.getRoomByID(game.currentId).getItemsDescByName("coat");
  } 
   if(game.input=="examine pockets"||game.input=="x pockets"){
       if(game.gunFound==false){
@@ -517,6 +534,13 @@ void examineFunction(game& game){
   if(game.gunFound==true&&(game.input=="x gun"||game.input=="examine gun"||game.input=="x pistol"||game.input=="examine pistol")){
       cout<<"A small pistol seems to be loaded.";
   }  
+  for(int i=0;i<game.getRoomByID(game.currentId).items.size();i++){
+      if(game.input.size()<=0){return;}
+      if((game.input.find("examine")!=string::npos||game.input.substr(0,1).find("x")!=string::npos)&&(game.input.find(game.getRoomByID(game.currentId).items[i].name)!=string::npos||game.input.find(game.getRoomByID(game.currentId).items[i].name)!=string::npos)){
+
+            game.getRoomByID(game.currentId).getItemsDescByName(game.getRoomByID(game.currentId).items[i].name);
+      }
+  }
 }
 
 void useFunction(game& game){

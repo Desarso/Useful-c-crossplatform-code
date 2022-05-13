@@ -135,8 +135,8 @@ int main(){
     int minutes=3;
     int seconds=0;
     int miliSeconds=0;
-    string timerString ="Time Left- "+std::to_string(minutes)+":"+std::to_string(seconds)+":"+std::to_string(miliSeconds)+"\n\n";
-    string inputDisplay="\rInput: "+liveInput;
+    // string timerString ="Time Left- "+std::to_string(minutes)+":"+std::to_string(seconds)+":"+std::to_string(miliSeconds)+"\n\n";
+    // string inputDisplay="\rInput: "+liveInput;
     // display[2]=inputDisplay;
     display={titleMessage,timerString,inputDisplay};
     cout<<"this is stuff";
@@ -285,4 +285,4 @@ string getStringInRawMode(int minSize, int maxSize, string& liveInput){
   //here I reset all console settings to default
   
   return "";
-};
+};  

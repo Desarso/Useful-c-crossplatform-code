@@ -13,6 +13,7 @@
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
 #ifdef __MINGW32__ 
        #include <conio.h>
+       #include <windows.h>
 #endif
 
 using std::cout;
@@ -413,9 +414,14 @@ void mainGameLoop(game& game){
     bool skipFunctions=false;
     game.input=getStringInRawMode(0,30);
     clear();
+    displayObj.titleBool=false;
+    displayObj.descBool=false;
+    displayObj.invDesB=false;
+    displayObj.itemDescB=false;
     displayObj.currentDisplay={};
-    displayObj.title=0;
+     displayObj.title=0;
     displayObj.description=0;
+   
     skipFunctions=false;
     vector<string> validInputs={"n","north","s","south","e","east","w","west"};
     for(int i=0;i<validInputs.size();i++){
@@ -560,13 +566,7 @@ void useUserInput( game& game){
   }
    
 
-  // for(int i=0;i<allowedInput.size();i++){
-  //      if(game.input==(allowedInput[i])){ 
-  //       cout<<"\nTo get the most basic commands type: help basics or help b";
-  //       game.validInput=true;
-  //       return;
-  //       }
-  // }
+
 
 
  //inventory if statments
@@ -612,28 +612,30 @@ void useUserInput( game& game){
   allowedInput={"look","l","look around","l around"};
     for(int i=0;i<allowedInput.size();i++){
        if(game.input==(allowedInput[i])){ 
-       cout<<"\n";
+            cout<<"\n";
             game.getRoomByID(game.currentId).displayRoomName();
             displayObj.title=game.currentId;
             displayObj.titleBool=true;
             cout<<"\n\n";
             displayObj.description=game.currentId;
+            displayObj.descBool=true;
             game.getRoomByID(game.currentId).displayDescription();
-            game.getRoomByID(game.currentId).toggleDescriptionRead(); 
+            game.getRoomByID(game.currentId).toggleDescriptionRead();
+            game.validInput=true; 
        
-        if(game.gunFound==true){
+        if(game.gunFound==true&&game.currentId==1){
             displayObj.currentDisplay.push_back("\rYou suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
             cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
             game.singleThread=false;
         } 
         game.validInput=true;
         }
+        if(game.validInput=false){
+             displayObj.currentDisplay.push_back("I'm sorry I don't know how to do that.");
+            cout<<"I'm sorry I don't know how to do that.";
+        }
   }
 
-  if(game.input.substr(0,4)=="look"&&game.input.size()>4&&game.validInput==false){
-      displayObj.currentDisplay.push_back("I'm sorry I don't know how to do that.");
-      cout<<"I'm sorry I don't know how to do that.";
-  }
   
 
 
@@ -668,7 +670,7 @@ void examineFunction(game& game){
      displayObj.invDesB=true;
      return;
  } 
-  if(game.input=="examine pockets"||game.input=="x pockets"){
+  if(game.input=="examine pockets"||game.input=="x pockets"||game.input=="x pocket"||game.input=="examine pocket"){
       if(game.gunFound==false){
     displayObj.currentDisplay.push_back("You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small metal pistol, your are startled at the sight of it.");
      cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small "<<
@@ -1022,15 +1024,16 @@ void timerMinutes(game& game){
           timerString ="\n\n\nTime Left-> "+std::to_string(timerVars.minutesLeft)+":"+std::to_string(timerVars.secondsLeft)+":"+displayMillis+"\n";
            string inputDisplay="\rInput: "+displayObj.liveInput;
             // game.getRoomByID(game.currentId).displayRoomName();
-            if(displayObj.titleBool==true){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n\r";}
-            if(displayObj.descBool==true){game.getRoomByID(displayObj.description).displayDescription();}
-            if(displayObj.invDesB==true){game.player1.getItemsDescByName(displayObj.itemDescription);}
-            if(displayObj.itemDescB==true){game.getRoomByID(game.currentId).getItemsDescByName(displayObj.itemDescription);}
+           if(displayObj.title!=0){game.getRoomByID(displayObj.title).displayRoomName();cout<<"\n\n\r";}
+           if(displayObj.description!=0){game.getRoomByID(displayObj.description).displayDescription();}
+           if(displayObj.invDesB==true){game.player1.getItemsDescByName(displayObj.itemDescription);}
+           if(displayObj.itemDescB==true){game.getRoomByID(game.currentId).getItemsDescByName(displayObj.itemDescription);}
+        
             cout<<"\n";
             for(int i=0;i<displayObj.currentDisplay.size();i++){
                 cout<<"\r"<<displayObj.currentDisplay[i];
             }  
-            cout<<"\n\n\r"<<timerString;
+            cout<<"\nr"<<timerString;
             cout<<"\r";
             for(int i=0;i<game.player1.lives;i++){
               cout<<"\033[1;31m❤\033[0m";
@@ -1094,6 +1097,7 @@ void timerMinutes(game& game){
 void clear(){
     #ifdef __MINGW32__ 
      std::system("CLS");
+  
     #endif
     #ifdef __linux__
       std::system("clear");

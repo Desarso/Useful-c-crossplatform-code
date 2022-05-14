@@ -77,12 +77,12 @@ struct room{
   int room_id;
   bool occupied=false;
   int  N,S,E,W;
-  bool descriptionRead=false;
+  int descriptionRead=0;
   bool monsterSpawn=false;
   bool monsterKilled=false;
   int amountOfTimeAccessed;
   vector<item> items;
-  room(string name, string desc, int id, vector<item> ite, int n, int s, int e, int w){
+  room(string name, string desc, int id, vector<item> ite, int n, int s, int e, int w, bool descRead){
     room_name=name;
     room_description=desc;
     room_id=id;
@@ -91,7 +91,9 @@ struct room{
     S=s;
     E=e;
     W=w;
+    descriptionRead=descRead;
   }
+
 
   void getItemsDescByName(string Nam){
     for(int i=0;i<items.size();i++){
@@ -102,9 +104,9 @@ struct room{
 }
   int getNextRoomId(string cords){
        if(cords=="N"||cords=="n"){return N;}
-       if(cords=="E"||cords=="E"){return E;}
-       if(cords=="S"||cords=="S"){return S;}
-       if(cords=="W"||cords=="W"){return W;}
+       if(cords=="E"||cords=="e"){return E;}
+       if(cords=="S"||cords=="s"){return S;}
+       if(cords=="W"||cords=="w"){return W;}
     return 0;
    }
    
@@ -115,8 +117,8 @@ struct room{
   void displayRoomName(){
       largeType(room_name);
   }
-  void toggleDescriptionRead(bool t){
-      descriptionRead=t;
+  void toggleDescriptionRead(){
+      descriptionRead=1;
   }
 
   string getName(){
@@ -181,6 +183,7 @@ public:
     rooms=r;
   };
   room getRoomByID(int ID);
+  void changeCurrentId(int id);
 //   game fetchData();
 //   void writeData(string mode);
 //   void displayAllGameData();
@@ -305,7 +308,9 @@ public:
 //   return games[0];
 // }
 
-
+void game::changeCurrentId(int id){
+  currentId=id;
+};
 room game::getRoomByID(int ID){
     return rooms[ID-1];
   }
@@ -354,6 +359,7 @@ void mainGameLoop(game& game);
 void multiThreadProgram(game& game);
 void timerMinutes(game&);
 void displayVerb(game&);
+void moveToRoom(game& game);
 
 
 
@@ -365,16 +371,16 @@ int main() {
   string playerName;
   cout<<"Before we being, please input your name.";
   playerName=getStringInRawMode(20,20);
-  player player1=player(playerName, {item("coat", "A heavy brown coat, keeps, you warm, also seem to have many pockets.",{item("gun","A small handheld pistol")})} );
+  player player1=player(playerName, {item("coat", "A heavy brown coat, keeps, you warm, also seems to have many pockets.",{item("gun","A small handheld pistol")})} );
 
-
+//north,south,east,west.
   game game={"Death in the Dark",{room("Dark Cave",
                  "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
                 1,{item("passage","A small passage way to another room.")},
-                2,0,0,0),room("Cave Room 2",
+                2,0,0,0,false),room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
   2,{},
-  3,1,4,5)}};
+  0,1,0,0,false)}};
   game.player1=player1;
 
   int currentRoomId=game.rooms[0].getCurrentRoomId();
@@ -403,7 +409,7 @@ void mainGameLoop(game& game){
     if(game.singleThread==false&&game.multiThreadingOn==false){
         multiThreadProgram(game);
     }
-    cout<<"\n\n>";
+    cout<<"\n\n >";
     bool skipFunctions=false;
     game.input=getStringInRawMode(0,30);
     clear();
@@ -411,11 +417,20 @@ void mainGameLoop(game& game){
     displayObj.title=0;
     displayObj.description=0;
     skipFunctions=false;
-    if(game.input.find("use")!=string::npos){
+    vector<string> validInputs={"n","north","s","south","e","east","w","west"};
+    for(int i=0;i<validInputs.size();i++){
+      if(game.input==validInputs[i]){
+        moveToRoom(game);
+        skipFunctions=true;
+      }
+    }
+    
+    if(game.input.find("use")!=string::npos&&skipFunctions==false){
       useFunction(game);
       skipFunctions=true;
     }
-    if(game.input.find("examine")!=string::npos||game.input.substr(0,1)=="x"){
+    
+    if((game.input.find("examine")!=string::npos||game.input.substr(0,1)=="x")&&skipFunctions==false){
       examineFunction(game);
       skipFunctions=true;
     }
@@ -429,9 +444,7 @@ void multiThreadProgram(game& game){
     game.multiThreadingOn=true;
     string input;
     string liveInput;
-    int minutes=3;
-    int seconds=0;
-    int miliSeconds=0;
+    timerVars.minutesLeft=3;
     timerVars.secondsLeft=30;
     std::thread mainThread(mainGameLoop, std::ref(game));;
     std::thread timeout(timerMinutes, std::ref(game));
@@ -450,7 +463,81 @@ void greetingModule(){
 //this is the main user loop.
 //Basic andventure, obviously requires 5 monsters, and 5 rooms, the monsters should require some level of competence to defeat, and they should be in increasing dificulty. 
 //how would they need to be defeated? Common ideas, are riddles?--doesn not sound very fun tbh,
-//maybe, minigames?-- too much code--       
+//maybe, minigames?-- too much code-- 
+void moveToRoom(game& game){
+  int nextRoom;
+  if(game.input=="n"||game.input=="north"){
+    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("n");
+    if(nextRoom!=0){
+      game.changeCurrentId(nextRoom);
+      game.getRoomByID(game.currentId).displayRoomName();
+      displayObj.title=game.currentId;
+      if(game.getRoomByID(game.currentId).descriptionRead==false){
+        game.getRoomByID(game.currentId).displayDescription();
+        game.rooms[game.currentId-1].descriptionRead=1;
+        displayObj.description=game.currentId;
+      }else{
+        displayObj.description=0;
+      }
+    }else{
+      cout<<"You can't go that way.";
+    }
+    
+    return;
+  }
+  if(game.input=="s"||game.input=="south"){
+    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("s");
+     if(nextRoom!=0){
+      game.changeCurrentId(nextRoom);
+      game.getRoomByID(game.currentId).displayRoomName();
+      displayObj.title=game.currentId;
+      if(game.getRoomByID(game.currentId).descriptionRead==false){
+        game.getRoomByID(game.currentId).displayDescription();
+        game.rooms[game.currentId-1].descriptionRead=1;
+        displayObj.description=game.currentId;
+      }else{
+        displayObj.description=0;
+      }
+    }else{
+      cout<<"You can't go that way.";
+    }
+    return;
+  }
+  if(game.input=="w"||game.input=="west"){
+    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("w");
+     if(nextRoom!=0){
+      game.changeCurrentId(nextRoom);
+      game.getRoomByID(game.currentId).displayRoomName();
+      displayObj.title=game.currentId;
+      if(game.getRoomByID(game.currentId).descriptionRead!=true){
+        game.getRoomByID(game.currentId).displayDescription();
+        game.getRoomByID(game.currentId).toggleDescriptionRead();
+        displayObj.description=game.currentId;
+      }
+    }else{
+      cout<<"You can't go that way.";
+    }
+    return;
+  }
+  if(game.input=="e"||game.input=="east"){
+    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("e");
+     if(nextRoom!=0){
+      game.changeCurrentId(nextRoom);
+      game.getRoomByID(game.currentId).displayRoomName();
+      displayObj.title=game.currentId;
+      if(game.getRoomByID(game.currentId).descriptionRead!=true){
+        game.getRoomByID(game.currentId).displayDescription();
+        game.getRoomByID(game.currentId).toggleDescriptionRead();
+        displayObj.description=game.currentId;
+      }
+    }else{
+      cout<<"You can't go that way.";
+    }
+    return;
+  }
+
+}
+
 void useUserInput( game& game){
     displayObj.titleBool =false;
     displayObj.descBool = false;
@@ -460,26 +547,26 @@ void useUserInput( game& game){
     vector<string> allowedInput;
   //help if statements
 
-    allowedInput={"help basics","h b","help b","h basics"};
+    allowedInput={"help","h","-help","-h","help basics","h b","help b","h basics"};
 
   for(int i=0;i<allowedInput.size();i++){
        if(game.input==(allowedInput[i])){ 
-        displayObj.currentDisplay[0]={"\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction."};
+        displayObj.currentDisplay.push_back("\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction.");
         cout<<displayObj.currentDisplay[0];
         game.validInput=true;
         return;
 
         }
   }
-   allowedInput={"help","h","-help","-h"};
+   
 
-  for(int i=0;i<allowedInput.size();i++){
-       if(game.input==(allowedInput[i])){ 
-        cout<<"\nTo get the most basic commands type: help basics or help b";
-        game.validInput=true;
-        return;
-        }
-  }
+  // for(int i=0;i<allowedInput.size();i++){
+  //      if(game.input==(allowedInput[i])){ 
+  //       cout<<"\nTo get the most basic commands type: help basics or help b";
+  //       game.validInput=true;
+  //       return;
+  //       }
+  // }
 
 
  //inventory if statments
@@ -526,19 +613,18 @@ void useUserInput( game& game){
     for(int i=0;i<allowedInput.size();i++){
        if(game.input==(allowedInput[i])){ 
        cout<<"\n";
-        if(game.currentId==1&&game.getRoomByID(game.currentId).descriptionRead==false){
             game.getRoomByID(game.currentId).displayRoomName();
             displayObj.title=game.currentId;
             displayObj.titleBool=true;
             cout<<"\n\n";
             displayObj.description=game.currentId;
-            game.getRoomByID(game.currentId).displayDescription(); 
-        }
+            game.getRoomByID(game.currentId).displayDescription();
+            game.getRoomByID(game.currentId).toggleDescriptionRead(); 
+       
         if(game.gunFound==true){
             displayObj.currentDisplay.push_back("\rYou suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
             cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
             game.singleThread=false;
-            game.getRoomByID(game.currentId).toggleDescriptionRead(true);
         } 
         game.validInput=true;
         }
@@ -566,6 +652,11 @@ void examineFunction(game& game){
   displayObj.invDesB = false;
   displayObj.itemDescB=false;
   displayObj.currentDisplay={};
+  if(game.input=="examine room"||game.input=="x room"){
+    cout<<"\n\rThere is no need to refer to the room directly, rather refer to it's items and features";
+    displayObj.currentDisplay.push_back("\n\rThere is no need to refer to the room directly, rather refer to it's items and features");
+    return;
+  }
   if(game.input=="examine"||game.input=="x"){
     cout<<"\n\nWhat would you like to examine?";
     displayObj.currentDisplay.push_back("\n\nWhat would you like to examine?");
@@ -581,7 +672,7 @@ void examineFunction(game& game){
       if(game.gunFound==false){
     displayObj.currentDisplay.push_back("You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small metal pistol, your are startled at the sight of it.");
      cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small "<<
-     "metal pistol, your are startled at the sight of it.";
+     "metal pistol, your are startled at the sight of it. GUN HAS BEEN ADDED TO INVENTORY.";
      game.gunFound=true;
      return; 
      }else{
@@ -937,7 +1028,7 @@ void timerMinutes(game& game){
             if(displayObj.itemDescB==true){game.getRoomByID(game.currentId).getItemsDescByName(displayObj.itemDescription);}
             cout<<"\n";
             for(int i=0;i<displayObj.currentDisplay.size();i++){
-                cout<<displayObj.currentDisplay[i];
+                cout<<"\r"<<displayObj.currentDisplay[i];
             }  
             cout<<"\n\n\r"<<timerString;
             cout<<"\r";

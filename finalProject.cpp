@@ -875,7 +875,7 @@ void generalInputProcessingFunction(game& game){
                 for(int i=0;i<game.player1.inventory.size();i++){
                     possibleInput.push_back("x "+game.player1.inventory[i].name);
                     possibleInput.push_back("examine "+game.player1.inventory[i].name);
-                    for(int j;j<game.player1.inventory[i].subObjects.size()){
+                    for(int j;j<game.player1.inventory[i].subObjects.size();j++){
                         possibleInput.push_back("x "+game.player1.inventory[i].subObjects[j].name);
                         possibleInput.push_back("examine "+game.player1.inventory[i].subObjects[j].name);
 

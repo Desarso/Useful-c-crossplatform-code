@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits>
 #include <thread>
+#include <pthread.h>
 #include <chrono>
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
 #ifdef __MINGW32__ 
@@ -50,52 +51,52 @@ void clear();
 //heres' the thing, the decision tree can only be triggered with monster related commands and the regular input must still work. 
 //how do we detect monster related input?
 
+//players does a base attack damage of 5, and can get a multiplier with a weapon.
+const int NO_INDEX=10000;
 struct monsters{
-    string name;
-   
+    string name, description;
+    vector<string> deathLines, attackLines;
+    int attackDamage, lives;
+    //minutes, seconds;
+    vector<int> timeToKill;
+
+
     // int health;
-    monsters(string n){
+    monsters(string n, string desc, vector<string> al, vector<string> dl,int d, int l,vector<int> time){
         name=n;
+        description=desc;
+        attackLines=al;
+        deathLines =dl;
+        attackDamage=d;
+        lives=l;
+        timeToKill=time;
     };
 
 };
-
 struct timerVariables{
     int minutesLeft,secondsLeft, millileft;
 };
 struct item{
   string name;
   string description;
-  vector<item> subObjects;
   bool triggerCondition=true;
   string triggerMessage;
-  item(string n, string desc, string triggerMessage){
+  bool visible, canGet;
+  item(string n, string desc, string tm, bool vis, bool CG){
     name=n;
     description=desc;
+    triggerMessage=tm;
+    visible=vis;
+    canGet=CG;
   }
-  item(string n, string desc, string triggerMessage, vector<item> sub){
-   name=n;
-   description=desc;
-   subObjects=sub;
-}
+
 void displayItemData(){
     cout<<"\nItem Name: "<<name<<"\n"
     <<"Item Desc: "<<description<<"\n"
     <<"SubItem: "<<"\n";
-    for(int i=0; i<subObjects.size();i++){
-      cout<<"  subItem Name: "<<subObjects[i].name<<"\n"
-        <<"  Desc: "<<subObjects[i].description<<"\n\n";
-    };
+    
 
   }
-void displayTriggerMessage(){
-    if(triggerMessage.size()>0){
-        cout<<triggerMessage;
-        triggerCondition=false;
-    }
-   
-}
-
 };
 struct room{
   string room_name, room_description;
@@ -106,8 +107,9 @@ struct room{
   bool monsterSpawn=false;
   bool monsterKilled=false;
   int amountOfTimeAccessed;
+  monsters monst={"","",{},{},0,0,{}};
   vector<item> items;
-  room(string name, string desc, int id, vector<item> ite, int n, int s, int e, int w, bool descRead){
+  room(string name, string desc, int id, vector<item> ite, int n, int s, int e, int w, monsters mon){
     room_name=name;
     room_description=desc;
     room_id=id;
@@ -116,9 +118,16 @@ struct room{
     S=s;
     E=e;
     W=w;
-    descriptionRead=descRead;
-  }
-
+    monst=mon;
+  };
+  int getItemIndexByName(string nam){
+        for(int i=0;i<items.size();i++){
+            if(items[i].name==nam){
+                return i;
+            }
+        }
+        return NO_INDEX;  
+  };
 
   void getItemsDescByName(string Nam){
     for(int i=0;i<items.size();i++){
@@ -152,7 +161,7 @@ struct room{
   }
 
   void displayDescription(){
-    cout<<room_description<<"\n\n";
+    cout<<room_description<<"\n";
     descriptionRead=true;
   }
 
@@ -172,6 +181,8 @@ struct room{
 struct player{
     string name;
     int lives=8;
+    int MAX_HEALTH=20;
+    int attackDamage=5;
     vector<item> inventory;
     player(string n, vector<item> i){
         name=n;
@@ -195,7 +206,7 @@ struct player{
                 return i;
             }
         }
-        return 0;  
+        return NO_INDEX;  
     };
 };
 class game{
@@ -218,6 +229,7 @@ public:
   };
   room getRoomByID(int ID);
   void changeCurrentId(int id);
+
 };
 struct displayObject{
     string liveInput, lastInput, itemDescription, invItemDesc, timerString, inputDisplay;
@@ -226,26 +238,38 @@ struct displayObject{
     vector<string> currentDisplay;
     int title, description;
     void displayActionCurrent(game& game){
-           if(title!=0){game.getRoomByID(title).displayRoomName();cout<<"\n\n\r";}
+           if(title!=0){game.getRoomByID(title).displayRoomName();cout<<"\n\r";}
            if(description!=0){game.getRoomByID(description).displayDescription();}
-           if(invDesB==true){game.player1.getItemsDescByName(itemDescription);}
-           if(itemDescB==true){game.getRoomByID(game.currentId).getItemsDescByName(itemDescription);}
+           if(invDesB==true&&game.player1.inventory[game.player1.getItemIndexByName(itemDescription)].visible==true){
+             game.player1.getItemsDescByName(itemDescription);
+             }
+           if(itemDescB==true&&game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(itemDescription)].visible==true){
+             game.getRoomByID(game.currentId).getItemsDescByName(itemDescription);
+             }
         
-            cout<<"\n";
+            if(currentDisplay.size()>0){cout<<"\n";}
             for(int i=0;i<currentDisplay.size();i++){
                 cout<<currentDisplay[i];
-            }  
-            cout<<"\n\r"<<timerString;
-            cout<<"\r";
+            }
+            if(game.multiThreadingOn==true){
+              cout<<"\n\r"<<timerString;
+              cout<<"\r";
+            }
+            cout<<"\n\nHEALTH: ";
             for(int i=0;i<game.player1.lives;i++){
               cout<<"\033[1;31m❤\033[0m";
             }
-            cout<< inputDisplay;
-            cout.flush();
+            if(inputDisplay.size()==0){inputDisplay="\n\n\r> ";}
+
+              cout<< inputDisplay;
+              cout.flush();
+
+            
     }
 
     
 };
+
 
 
 void game::changeCurrentId(int id){
@@ -254,7 +278,6 @@ void game::changeCurrentId(int id){
 room game::getRoomByID(int ID){
     return rooms[ID-1];
   }
-
 
 
 //function declarations
@@ -293,19 +316,54 @@ void generalInputProcessingFunction(game& game);
 int main() {
   clear();
   string playerName;
-  cout<<"Before we being, please input your name.";
-  playerName=getStringInRawMode(20,20);
-  player player1=player(playerName, {item("coat", "A heavy brown coat, keeps, you warm, also seems to have many pockets.","You pat down on it and feel a hard object on your inner jacket pocket, you reach in and pull out a small pistol. PISTOL HAS BEEN ADDED TO INVENTORY.",{item("gun","A small handheld pistol","")})});
 
-//north,south,east,west.
-  game game={"Death in the Dark",{room("Dark Cave",
-             "A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
-                1,{item("passage","A small passage way to another room.","")},
-                2,0,0,0,false),room("Cave Room 2",
+  //item = name, description, readable, collectible.
+  item coat =item("coat", "A heavy brown coat, keeps, you warm, also seems to have many pockets.","You pat down on it and feel a hard object on your inner jacket pocket, you reach in and pull out a small pistol. PISTOL HAS BEEN ADDED TO INVENTORY.",true,true);
+  item gun= item("gun","A small handheld pistol","",false, true);
+  item passage=item("passage","A small passage way to another room.","",true, false);
+  
+  //monsters = name, attack lines, death lines, damage, lives, timetoKill{minutes, seconds};
+  monsters twoHeadedGiant = monsters("gian","In the middle of the room you see it, a towering two headed monster, it is wearing some loose brown cloth and he seems to move in slow motion, the ground shakes under his feet, hurry up he is coming for you.",
+  {"*grunt","pow"},{"get out my cave, die you puny human", "well that was easy", "don't come back"},3,80,{3,30});
+
+  monsters zombieSpider = monsters("spider","",
+  {"*hiss"},{"let's make dinner","time to feed my babies", "you really though you had a chance", "that was pathetic"},5,50,{10,0});
+
+  monsters acidPukingOctopus = monsters("octopus","",
+  {
+    "*spitting sounds","*slimey sounds"},{"*a thousand horrible shrieks"},1,4000,{10,0});
+
+  monsters treeMAn = monsters("tree","",
+  {"hello sir "+playerName},{"go on"+playerName,"fair well "+playerName,"be well sir "+playerName, "good luck "+playerName},0,20000,{100,0});
+
+  monsters killerRobot=monsters("robot","",
+  {"taste my metal", "Don't mind me while I relieve you from living", "die you gross meat bag", "EXTERMINATE!!!"}, {"Hasta La Vista Baby!","I am sorry "+playerName+" I'm afraid I can't do that", "I don't experience fear but I can understand yours", "I am perfect, that which is imperfect must be sterilized"},10, 500,{10,0});
+
+  monsters willSmith =monsters("will","",
+  {"*slap"},{"KEEP MY WIVES NAME OUT YOUR F*%ING MOUTH."},1000, 5,{0,30});
+
+ 
+  cout<<"Before we being, please input your name.\n\n> ";
+  playerName=getStringInRawMode(20,20);
+
+  //player = name, {items}
+  player player1=player(playerName, {coat,gun});
+
+  //room = name, description, ID, {items}, NORTH ID, SOUTH ID, EAST ID, WEST ID, monster.
+  room darkCave=room("Dark Cave","A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
+                1,{passage},
+                2,0,0,0,twoHeadedGiant);
+  room caveRoom2=room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
                 2,{},
-                0,1,0,0,false)}
-                };
+                0,1,0,0,zombieSpider);
+
+//north,south,east,west.
+
+//game = name, {rooms};
+  game game={"Death in the Dark",{darkCave,caveRoom2}};
+
+  
   game.player1=player1;
 
   int currentRoomId=game.rooms[0].getCurrentRoomId();
@@ -331,11 +389,10 @@ int main() {
 
 void mainGameLoop(game& game){
     while(2){
-      //single thread is the look trigger, multithreading makes sure we don't get thread recursion, and we also check for spawn
-    if(game.singleThread==false&&game.multiThreadingOn==false||game.rooms[game.currentId-1].monsterSpawn==true){
+    if(game.singleThread==false&&game.multiThreadingOn==false&&game.getRoomByID(game.currentId).monsterSpawn==true){
         multiThreadProgram(game);
     }
-    cout<<"\n\n >";
+    displayObj.displayActionCurrent(game);
     bool skipFunctions=false;
     game.input=getStringInRawMode(0,30);
     clear();
@@ -344,7 +401,7 @@ void mainGameLoop(game& game){
     displayObj.invDesB=false;
     displayObj.itemDescB=false;
     displayObj.currentDisplay={""};
-     displayObj.title=0;
+    displayObj.title=0;
     displayObj.description=0;
    
     skipFunctions=false;
@@ -356,7 +413,7 @@ void mainGameLoop(game& game){
       }
     }
 
-    generalInputProcessingFunction(game);
+    if(skipFunctions!=true){generalInputProcessingFunction(game);}
     
 //     if(game.input.find("use")!=string::npos&&skipFunctions==false){
 //       useFunction(game);
@@ -379,9 +436,10 @@ void multiThreadProgram(game& game){
     string liveInput;
     timerVars.minutesLeft=3;
     timerVars.secondsLeft=30;
-    std::thread mainThread(mainGameLoop, std::ref(game));
-    std::thread timeout(timerMinutes, std::ref(game));
 
+    std::thread mainThread(mainGameLoop, std::ref(game));;
+    std::thread timeout(timerMinutes, std::ref(game));
+    // std::this_thread::sleep_for (std::chrono::milliseconds(50));
     mainThread.join();
     timeout.join();
 }
@@ -403,10 +461,10 @@ void moveToRoom(game& game){
     nextRoom=game.getRoomByID(game.currentId).getNextRoomId("n");
     if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      game.getRoomByID(game.currentId).displayRoomName();
+      // game.getRoomByID(game.currentId).displayRoomName();
       displayObj.title=game.currentId;
       if(game.getRoomByID(game.currentId).descriptionRead==false){
-        game.getRoomByID(game.currentId).displayDescription();
+        // game.getRoomByID(game.currentId).displayDescription();
         game.rooms[game.currentId-1].descriptionRead=1;
         displayObj.description=game.currentId;
       }else{
@@ -422,10 +480,10 @@ void moveToRoom(game& game){
     nextRoom=game.getRoomByID(game.currentId).getNextRoomId("s");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      game.getRoomByID(game.currentId).displayRoomName();
+      // game.getRoomByID(game.currentId).displayRoomName();
       displayObj.title=game.currentId;
       if(game.getRoomByID(game.currentId).descriptionRead==false){
-        game.getRoomByID(game.currentId).displayDescription();
+        // game.getRoomByID(game.currentId).displayDescription();
         game.rooms[game.currentId-1].descriptionRead=1;
         displayObj.description=game.currentId;
       }else{
@@ -440,10 +498,10 @@ void moveToRoom(game& game){
     nextRoom=game.getRoomByID(game.currentId).getNextRoomId("w");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      game.getRoomByID(game.currentId).displayRoomName();
+      // game.getRoomByID(game.currentId).displayRoomName();
       displayObj.title=game.currentId;
       if(game.getRoomByID(game.currentId).descriptionRead!=true){
-        game.getRoomByID(game.currentId).displayDescription();
+        // game.getRoomByID(game.currentId).displayDescription();
         game.getRoomByID(game.currentId).toggleDescriptionRead();
         displayObj.description=game.currentId;
       }
@@ -456,10 +514,10 @@ void moveToRoom(game& game){
     nextRoom=game.getRoomByID(game.currentId).getNextRoomId("e");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      game.getRoomByID(game.currentId).displayRoomName();
+      // game.getRoomByID(game.currentId).displayRoomName();
       displayObj.title=game.currentId;
       if(game.getRoomByID(game.currentId).descriptionRead!=true){
-        game.getRoomByID(game.currentId).displayDescription();
+        // game.getRoomByID(game.currentId).displayDescription();
         game.getRoomByID(game.currentId).toggleDescriptionRead();
         displayObj.description=game.currentId;
       }
@@ -471,200 +529,59 @@ void moveToRoom(game& game){
 
 }
 
-void useUserInput( game& game){
-    displayObj.titleBool =false;
-    displayObj.descBool = false;
-    displayObj.invDesB = false;
-    displayObj.itemDescB = false;
-    displayObj.currentDisplay={};
-    vector<string> allowedInput;
-  //help if statements
 
-    allowedInput={"help","h","-help","-h","help basics","h b","help b","h basics"};
+void generalInputProcessingFunction(game& game){
+    //this function is mean to adress the issue of validating a large amount of input possibilties
+    // withing a large object space, while being robust and as simple as possible while making use of loops.
+    //look commands
+    string userInput=game.input;
+    vector<string> possibleInput;
+    
 
-  for(int i=0;i<allowedInput.size();i++){
-       if(game.input==(allowedInput[i])){ 
-        displayObj.currentDisplay.push_back("\n\nThese are the commands you will use most often.\n\n\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\"inventory\" or \"i\": List everything you're carrying.\n\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction.");
+
+
+    //here are some of the possible verbs one can use, will create an exit function that exits if the input does not match this.
+    vector<string> possibleInitialLetters={"l","e","x","u"};
+
+
+//inventory logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    possibleInput={"inv","i","inventory","in","inve"};
+        
+      for(int i=0;i<possibleInput.size();i++){
+        if(game.input==(possibleInput[i])){ 
+              displayObj.currentDisplay.push_back("Currently your inventory contains:\n\n");               
+              // cout<<displayObj.currentDisplay[0];
+              int counter=1;
+        
+          for(int i=0;i<game.player1.inventory.size();i++){
+              if(game.player1.inventory[i].visible==true){
+                  displayObj.currentDisplay.push_back("\r"+std::to_string(counter)+". "+game.player1.inventory[i].name+"\n"); 
+                  // cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
+                  counter++;
+              }
+              game.validInput=true;
+              
+          }
+        }
+        } 
+//end inventory logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  //help verb logic
+        possibleInput={"help","h","-help","-h","help basics","h b","help b","h basics"};
+
+  for(int i=0;i<possibleInput.size();i++){
+       if(game.input==(possibleInput[i])){ 
+        displayObj.currentDisplay.push_back("\n\n\rThese are the commands you will use most often.\n\n\r\"look\" or \"l\": Look around the room -- repeat the description of everything you see.\n\r\"examine thing\" or \"x thing\": Look more closely at something -- learn more about it.\n\r\"inventory\" or \"i\": List everything you're carrying.\n\r\"north\", \"south\", \"east\", \"west\", etc., or \"n\", \"s\", \"e\", \"w\", etc.: Walk in some direction.");
         cout<<displayObj.currentDisplay[0];
         game.validInput=true;
         return;
 
         }
   }
-   
-
-
-
-
- //inventory if statments
- allowedInput={"inv","i","inventory","in","inve"};
-    
-   for(int i=0;i<allowedInput.size();i++){
-       if(game.input==(allowedInput[i])){ 
-          displayObj.currentDisplay.push_back("Currently your inventory contains:\n");               
-          cout<<displayObj.currentDisplay[0];
-          int counter=1;
-     
-     for(int i=0;i<game.player1.inventory.size();i++){
-         if(game.player1.inventory[i].name!="gun"||game.gunFound==false){
-            displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n"); 
-            cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
-            counter++;
-         }else if(game.gunFound==true){
-             displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].name+"\n");
-             cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
-             counter++;
-         }
-        if(game.player1.inventory[i].subObjects.size()>0){
-            for(int j=0;j<game.player1.inventory[i].subObjects.size();j++){
-                if(game.gunFound==false&&game.player1.inventory[i].subObjects[j].name!="gun"){
-                  displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].subObjects[j].name+"\n");
-                  cout<<counter<<". "<<game.player1.inventory[i].subObjects[j].name<<"\n";
-                  counter++;
-                }else if(game.gunFound==true){
-                    displayObj.currentDisplay.push_back(std::to_string(counter)+". "+game.player1.inventory[i].subObjects[j].name+"\n");
-                    cout<<counter<<". "<<game.player1.inventory[i].subObjects[j].name<<"\n";
-                }
-                
-            }
-        }
-              
-     
-     game.validInput=true;
-        }}
-  }
-
- 
-  //look if statements
-  allowedInput={"look","l","look around","l around"};
-    for(int i=0;i<allowedInput.size();i++){
-       if(game.input==(allowedInput[i])){ 
-            cout<<"\n";
-            game.getRoomByID(game.currentId).displayRoomName();
-            displayObj.title=game.currentId;
-            displayObj.titleBool=true;
-            cout<<"\n\n";
-            displayObj.description=game.currentId;
-            displayObj.descBool=true;
-            game.getRoomByID(game.currentId).displayDescription();
-            game.getRoomByID(game.currentId).toggleDescriptionRead();
-            game.validInput=true; 
-       
-        if(game.gunFound==true&&game.currentId==1){
-            displayObj.currentDisplay.push_back("\rYou suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
-            cout<<"You suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you."; 
-            game.singleThread=false;
-        } 
-        game.validInput=true;
-        }
-        if(game.validInput=false){
-             displayObj.currentDisplay.push_back("I'm sorry I don't know how to do that.");
-            cout<<"I'm sorry I don't know how to do that.";
-        }
-  }
-
-  
-
-
-
-  };
-
-void examineFunction(game& game){
-    //examine if statements.
-  //self note, must be able to examine all objects, self, inventory,
-  //when in a certain room where an object is meant to be the center of focus, most codes should point to it. 
-  //must also be able to examine any obvious features of the room, and any things that is implied to exist, even if they are not important
-  //the rooms should get more intricate over time, meaning that the amount of items should increase, last room should have at least 10 items, embedded items are optional.
-  //I need to also figure out a way to manage the inventory display in a more effective way. Instead of setting game items to inventory, I should  add one item at a time, and start with the items already on me. 
-  displayObj.titleBool= false;
-  displayObj.descBool = false;
-  displayObj.invDesB = false;
-  displayObj.itemDescB=false;
-  displayObj.currentDisplay={};
-  if(game.input=="examine room"||game.input=="x room"){
-    cout<<"\n\rThere is no need to refer to the room directly, rather refer to it's items and features";
-    displayObj.currentDisplay.push_back("\n\rThere is no need to refer to the room directly, rather refer to it's items and features");
-    return;
-  }
-  if(game.input=="examine"||game.input=="x"){
-    cout<<"\n\nWhat would you like to examine?";
-    displayObj.currentDisplay.push_back("\n\nWhat would you like to examine?");
-    return;
-  }
-  if(game.input=="examine coat"||game.input=="x coat"){
-     game.player1.getItemsDescByName("coat");
-     displayObj.itemDescription=("coat");
-     displayObj.invDesB=true;
-     return;
- } 
-  if(game.input=="examine pockets"||game.input=="x pockets"||game.input=="x pocket"||game.input=="examine pocket"){
-      if(game.gunFound==false){
-    displayObj.currentDisplay.push_back("You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small metal pistol, your are startled at the sight of it.");
-     cout<<"You pat down on your coat and feel a solid object on your chest pocket, you reach in a pull out a small "<<
-     "metal pistol, your are startled at the sight of it. GUN HAS BEEN ADDED TO INVENTORY.";
-     game.gunFound=true;
-     return; 
-     }else{
-         displayObj.currentDisplay.push_back("There is a gun in there. Might be useful if you find enemies.");
-         cout<<"There is a gun in there. Might be useful if you find enemies.";
-         return;
-     }
-}
-  if(game.gunFound==true&&(game.input=="x gun"||game.input=="examine gun"||game.input=="x pistol"||game.input=="examine pistol")){
-      displayObj.currentDisplay.push_back("A small pistol seems to be loaded.");
-      cout<<"A small pistol seems to be loaded.";
-      return;
-  }  
-  for(int i=0;i<game.getRoomByID(game.currentId).items.size();i++){
-      if(game.input.size()<=0){return;}
-      if((game.input.find("examine")!=string::npos||game.input.substr(0,1).find("x")!=string::npos)&&(game.input.find(game.getRoomByID(game.currentId).items[i].name)!=string::npos||game.input.find(game.getRoomByID(game.currentId).items[i].name)!=string::npos)){
-
-            game.getRoomByID(game.currentId).getItemsDescByName(game.getRoomByID(game.currentId).items[i].name);
-            displayObj.itemDescription=(game.getRoomByID(game.currentId).items[i].name);
-            displayObj.itemDescB=true;
-            return;
-      }
-  }
-  for(int i=0;i<game.player1.inventory.size();i++){
-      if(game.input.size()<=0){return;}
-      if(game.input.size()>=game.player1.inventory[i].name.size()){
-      if((game.input.find("examine")!=string::npos||game.input.substr(0,1).find("x")!=string::npos)&&(game.player1.inventory[i].name.find(game.input)!=string::npos||game.player1.inventory[i].name.find(game.input)!=string::npos)){
-          cout<<game.player1.inventory[i].description;
-          displayObj.invDesB=true;
-          displayObj.invItemDesc=game.player1.inventory[i].name;
-          return;
-      }}
-  }
-}
-
-void useFunction(game& game){
-     displayObj.titleBool= false;
-  displayObj.descBool = false;
-  displayObj.invDesB = false;
-  displayObj.itemDescB=false;
-    displayObj.currentDisplay={};
-  //use if statements
-
-  if(game.input=="use"){
-    cout<<"What would you like to use";
-  }
-  if((game.gunFound==true)&(game.input=="use gun"||game.input=="use pistol"||game.input=="u gun"||game.input=="u pistol")){
-    cout<<"What would you like to use the gun for.\nUse connecting words like on or at such as 'verb' on 'noun' or 'verb' at 'noun.";
-  }
-
-}
-
-
-//monster spawn is not triggered until the look commands is used
-void generalInputProcessingFunction(game& game){
-    
-
-    string userInput=game.input;
-
-
+  //end of help verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     //look verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    vector<string> possibleInput ={"l","look"};
+    possibleInput ={"l","look"};
     for(int i=0;i<possibleInput.size();i++){
         if(userInput.size()>=possibleInput[i].size()){
             if(((userInput.find(possibleInput[i])!=string::npos))&&userInput.size()==possibleInput[i].size()){
@@ -673,17 +590,13 @@ void generalInputProcessingFunction(game& game){
                 // cout<<"\n\n";
                 displayObj.description=game.currentId;
                 displayObj.descBool=true;
-
-                //this is the part of look that turns single threading off, and starts the monster timer if it is the first room, we must make the 
-
-                // this part should follow a format of if trigger, then monster spawn, but find good triggers, that don't require game booleans.
-                if(game.rooms[game.currentId-1].monsterSpawn==true){
+                if(game.getRoomByID(game.currentId).monsterSpawn==true){
                     //replace this with an itemm trigger or monster spawn trigger.
-                    //must replace this chunk of code for a beast description.
-                    displayObj.currentDisplay.push_back("\rYou suddenly hear a loud noice, you turn around but can't see anything around you, your heart starts beating very fast, then you see it, a small hint of a giant hairless beast, it charges at you.");
+                    // cout<<"hello";
+                    displayObj.currentDisplay.push_back("\r"+game.getRoomByID(game.currentId).monst.description);
                     game.singleThread=false;
                 }
-                displayObj.displayActionCurrent(game);
+                // displayObj.displayActionCurrent(game);
                 game.validInput=true;
                 return;
             }
@@ -695,6 +608,7 @@ void generalInputProcessingFunction(game& game){
 
     //examine verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         vector<string> possibleVerb={"x","examine"};
+        bool checkLoop=false;
     
     for(int i=0;i<possibleVerb.size();i++){
         //here we check to see if user input contains x or examine key word and no other words
@@ -702,7 +616,7 @@ void generalInputProcessingFunction(game& game){
             if(((userInput.find(possibleVerb[i])!=string::npos))&&userInput.size()==possibleVerb[i].size()){
                 // cout<<"this works";
                 displayObj.currentDisplay.push_back("what would you like to examine");
-                displayObj.displayActionCurrent(game);
+                // displayObj.displayActionCurrent(game);
                 return;
             }
         }
@@ -716,20 +630,21 @@ void generalInputProcessingFunction(game& game){
                     possibleInput.push_back("x "+game.getRoomByID(game.currentId).items[i].name);
                     possibleInput.push_back("examine "+game.getRoomByID(game.currentId).items[i].name);
                 }
+                
                 for(int i=0;i<game.player1.inventory.size();i++){
                     possibleInput.push_back("x "+game.player1.inventory[i].name);
                     possibleInput.push_back("examine "+game.player1.inventory[i].name);
-                    for(int j;j<game.player1.inventory[i].subObjects.size();j++){
-                        possibleInput.push_back("x "+game.player1.inventory[i].subObjects[j].name);
-                        possibleInput.push_back("examine "+game.player1.inventory[i].subObjects[j].name);
-
-                    }
                 }
-                
+                // for(int i=0;i<possibleInput.size();i++){
+                //   cout<<"\n"<<possibleInput[i];
+                // }
+                // system("stty sane");
+                // exit(0);
                 //here I find if any of the nounds match and then I must take that noun and display it's description, and change the display object
                 for(int i=0;i<possibleInput.size();i++){
                         if(userInput==possibleInput[i]){
                            string nounFound="";
+                          //  cout<<"works ";
                             if(userInput.substr(0,1)=="x"){
                                //remove "x " from user input 
                                nounFound=userInput.substr(2,userInput.size());
@@ -739,29 +654,58 @@ void generalInputProcessingFunction(game& game){
                                nounFound=userInput.substr(8,userInput.size());
                             }
                             if(nounFound.size()>0){
-                                if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition==true){
-                                    // cout<<"works";
-                                    game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition=false;
-                                    // cout<<game.player1.inventory[game.player1.getItemIndexByName(nounFound)].name;
-                                    // cout<<game.player1.inventory[0].triggerMessage;
-                                    displayObj.currentDisplay.push_back(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerMessage);
+                                // cout<<"works ";
 
-                                      //this section takes examine commands of user inventory and turns them into spawn triggers.
-                                    if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].name=="coat"||game.currentId==1){
+                                //checks player items
+                                if(game.player1.getItemIndexByName(nounFound)!=NO_INDEX){
+                                  if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition==true){
+                                  game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition=false;
+                                  displayObj.currentDisplay.push_back(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerMessage);
+                                  }
+                                  //here I check in an inspection is from an item in the inventory that triggers something else to happen
+                                  //this section makes triggers from x commands of player inventory
+                                  //please place inventory triggers here.
+
+                                    if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].name=="coat"){
+                                      game.gunFound=true;
                                       game.rooms[game.currentId-1].monsterSpawn=true;
-                                      }
+                                      game.player1.inventory[game.player1.getItemIndexByName("gun")].visible=true;
 
+                                      
                                     }
+                                   
+                                }
+                                
+
+
+                                //checks room items
+
+                               
+                                if(game.getRoomByID(game.currentId).getItemIndexByName(nounFound)!=NO_INDEX){
+                                  if(game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerCondition==true){
+                                    game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerCondition=false;
+                                    displayObj.currentDisplay.push_back(game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerMessage);
+                                  }
+
+                                  //place your room item triggers here
+
+                                }
+                                
+                               
                                 displayObj.itemDescription=(nounFound);
                                 displayObj.invDesB=true;
-                                displayObj.displayActionCurrent(game);
+                                // displayObj.displayActionCurrent(game);
+                              
                                 return;
                             }
                           
                         }
+
                 }
+                
              
             }
+            
         
     }
     //end of examine verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -773,7 +717,7 @@ void generalInputProcessingFunction(game& game){
 
 
 void helperMessage(){
-  cout<< "If you are stuck type -help";
+  cout<< "\n\nIf you are stuck type -help";
 }
 
 string getStringInRawMode(int minSize, int maxSize){
@@ -1041,6 +985,8 @@ void timerMinutes(game& game){
     int seconds=0;
     int milliSeconds=0;
     string displayMillis="00";
+    timerVars.minutesLeft=game.getRoomByID(game.currentId).monst.timeToKill[0];
+    timerVars.secondsLeft=game.getRoomByID(game.currentId).monst.timeToKill[1];
     // string timerString;
     auto start = std::chrono::steady_clock::now();
     int current_ms_elapsed=0;
@@ -1107,9 +1053,6 @@ void timerMinutes(game& game){
     
 }
 }
-
-
-
 
 
 //the following function have preprocessors so that I can edit the code on windows.

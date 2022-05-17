@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits>
 #include <thread>
+
 #include <pthread.h>
 #include <chrono>
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
@@ -77,12 +78,12 @@ struct timerVariables{
     int minutesLeft,secondsLeft, millileft;
 };
 struct item{
-  string name;
+  vector<string> name;
   string description;
   bool triggerCondition=true;
   string triggerMessage;
   bool visible, canGet;
-  item(string n, string desc, string tm, bool vis, bool CG){
+  item(vector<string> n, string desc, string tm, bool vis, bool CG){
     name=n;
     description=desc;
     triggerMessage=tm;
@@ -91,7 +92,7 @@ struct item{
   }
 
 void displayItemData(){
-    cout<<"\nItem Name: "<<name<<"\n"
+    cout<<"\nItem Name: "<<name[0]<<"\n"
     <<"Item Desc: "<<description<<"\n"
     <<"SubItem: "<<"\n";
     
@@ -120,18 +121,22 @@ struct room{
     W=w;
     monst=mon;
   };
-  int getItemIndexByName(string nam){
+  int getItemInd(string nam){
         for(int i=0;i<items.size();i++){
-            if(items[i].name==nam){
+          for(int j=0;j<items[i].name.size();j++){
+            // cout<<items[i].name[j]<<"--\n";
+            if(items[i].name[j]==nam){
                 return i;
             }
+          }
+            
         }
         return NO_INDEX;  
   };
 
   void getItemsDescByName(string Nam){
     for(int i=0;i<items.size();i++){
-        if(items[i].name==Nam){
+        if(items[i].name[0]==Nam&&items[i].visible==true){
             cout<<items[i].description;
             items[i].triggerCondition=false;
         }
@@ -191,18 +196,19 @@ struct player{
     void setLives(int l){
         lives=l;
     };
-
+//must be first name
     void getItemsDescByName(string Nam){
         for(int i=0;i<inventory.size();i++){
-            if(inventory[i].name==Nam){
+            if(inventory[i].name[0]==Nam&&inventory[i].visible==true){
                 cout<<inventory[i].description;
                 inventory[i].triggerCondition=false;
             }
         }
     };
-    int getItemIndexByName(string nam){
+    //must be first name
+    int getItemInd(string nam){
         for(int i=0;i<inventory.size();i++){
-            if(inventory[i].name==nam){
+            if(inventory[i].name[0]==nam){
                 return i;
             }
         }
@@ -227,25 +233,37 @@ public:
     name=n;
     rooms=r;
   };
-  room getRoomByID(int ID);
+  room currentRoom();
   void changeCurrentId(int id);
 
 };
 struct displayObject{
-    string liveInput, lastInput, itemDescription, invItemDesc, timerString, inputDisplay;
+    string liveInput, lastInput, itemName, timerString, inputDisplay;
     int order;
     bool titleBool, descBool, itemDescB, invDesB;
     vector<string> currentDisplay;
     int title, description;
     void displayActionCurrent(game& game){
-           if(title!=0){game.getRoomByID(title).displayRoomName();cout<<"\n\r";}
-           if(description!=0){game.getRoomByID(description).displayDescription();}
-           if(invDesB==true&&game.player1.inventory[game.player1.getItemIndexByName(itemDescription)].visible==true){
-             game.player1.getItemsDescByName(itemDescription);
-             }
-           if(itemDescB==true&&game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(itemDescription)].visible==true){
-             game.getRoomByID(game.currentId).getItemsDescByName(itemDescription);
-             }
+           if(title!=0){game.currentRoom().displayRoomName();cout<<"\n\r";}
+           if(description!=0){game.currentRoom().displayDescription();}
+
+
+
+            // cout<<"\nItem Name: "<<itemName<<"\n";
+            if(game.player1.getItemInd(itemName)!=NO_INDEX){
+               if(invDesB==true&&game.player1.inventory[game.player1.getItemInd(itemName)].visible==true){
+                game.player1.getItemsDescByName(itemName);
+                }
+            }
+             
+    
+
+            if(game.currentRoom().getItemInd(itemName)!=NO_INDEX){
+              if(itemDescB==true&&game.currentRoom().items[game.currentRoom().getItemInd(itemName)].visible==true){
+                game.currentRoom().getItemsDescByName(itemName);
+                }
+            }
+              
         
             if(currentDisplay.size()>0){cout<<"\n";}
             for(int i=0;i<currentDisplay.size();i++){
@@ -275,8 +293,9 @@ struct displayObject{
 void game::changeCurrentId(int id){
   currentId=id;
 };
-room game::getRoomByID(int ID){
-    return rooms[ID-1];
+room game::currentRoom(){
+
+    return rooms[currentId-1];
   }
 
 
@@ -316,11 +335,10 @@ void generalInputProcessingFunction(game& game);
 int main() {
   clear();
   string playerName;
+  //each item state is represented as a seperate item
 
-  //item = name, description, readable, collectible.
-  item coat =item("coat", "A heavy brown coat, keeps, you warm, also seems to have many pockets.","You pat down on it and feel a hard object on your inner jacket pocket, you reach in and pull out a small pistol. PISTOL HAS BEEN ADDED TO INVENTORY.",true,true);
-  item gun= item("gun","A small handheld pistol","",false, true);
-  item passage=item("passage","A small passage way to another room.","",true, false);
+
+   //!!!MONSTERS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   //monsters = name, attack lines, death lines, damage, lives, timetoKill{minutes, seconds};
   monsters twoHeadedGiant = monsters("gian","In the middle of the room you see it, a towering two headed monster, it is wearing some loose brown cloth and he seems to move in slow motion, the ground shakes under his feet, hurry up he is coming for you.",
@@ -342,26 +360,65 @@ int main() {
   monsters willSmith =monsters("will","",
   {"*slap"},{"KEEP MY WIVES NAME OUT YOUR F*%ING MOUTH."},1000, 5,{0,30});
 
- 
-  cout<<"Before we being, please input your name.\n\n> ";
-  playerName=getStringInRawMode(20,20);
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  //player = name, {items}
-  player player1=player(playerName, {coat,gun});
+  //item = name, description, visible, collectible.
 
+  //ROOM 1 ITEMS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  item coat =item({"coat"}, "A heavy brown coat, keeps, you warm, also seems to have many pockets.","You pat down on it and feel a hard object on your inner jacket pocket, you reach in and pull out a small pistol. PISTOL HAS BEEN ADDED TO INVENTORY.",true,true);
+  item gun= item({"gun"},"A small handheld pistol","",false, true);
+  item loockedDoor=item({"door","large door","loocked door"},"A large locked wooden door, you try to open it, but the door is shut tight, there does not seems to be a lock or any locking mechanism","",true, false);
+  item openDoor = item({"door"},"the large door sits wide open", "",false, false);
+  item wallCandle = item({"candle"},"A thing taper candle, held in place by a decorative metal holder, the candle seems to have been lit recently, strange.","",true, false);
+  item woodenChestClosed = item({"chest"},"Large old wooden chest, seems to have a large lock on it, you try to pry to open it but the lock won't budge, mmm there must be a key around here.","",true,false);
+  item woodenChestOpenWithAxe = item({"chest"},"The chest sits open, you look inside to find a single item, a small golden axe.","",false,false);
+  item woodenChestEmpty = item({"chest"},"The opened chest sits empty","",false,false);
+  item enchantedAxe = item({"axe"},"A golden hatched, you can't help but be impressed at the sight of it, as you hold it you realize how heavy it is for it's size, wondering if it is actually made from solid gold. You turn the axe and notice a strange glint, it.. it looks like it's glowing.... must be some effect from the candle light.","AXE HAS BEEN ADDED TO INVENTORY.",false,true);
+  item heartOfGiant = item({"giant"},"You inspect the body of the fallen giant, staring imnously at it's two heads, the axe has split it's chest open, you reach into it's thoracic cavity and rip out's it's heart","PLUS FIVE HEARTS",false,false);
+  item enchantedWaterSkin =item({"giant","waterskin"},"You inspect the giant again, and find a waterskin, even though it is made from hide you can't help but notice it has the same glow as the axe","WATERSKIN HAS BEEN ADDED TO INVENTORY",true,true);
+  item deadGiant = item({"giant","dead giant"},"You inspect the dead giang once more but there is nothig on him, he dead body lies there","",false, false);
+  item moss = item({"moss", "green moss"},"Just some green moss growing on the cave wall","",true, false);
+  item carvings = item({"carvings","wall"},"On close inspection of the walls the carvings seems to composed of only two symbols, you wonder it it's a natural formation but the lines are too perfect.","Then you notice embeded in the wall sits a key. KEY HAS BEEN ADDED TO INVENTORY",true, false);
+  item key1=item({"key","key1"},"A small key, should try to open something","",false, true);
+
+//!!ROOMS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     
   //room = name, description, ID, {items}, NORTH ID, SOUTH ID, EAST ID, WEST ID, monster.
-  room darkCave=room("Dark Cave","A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can barely make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat.",
-                1,{passage},
+  //ROOM 1
+  room darkCave=room("Dark Cave","A small dark cave, smells faintly like sulfur, there is a dim candle attached to the wall. You can make out the smooth and damp texture of the walls, the room is earily silent and cold, good thing you are wearing a coat, the air is thick and damp, and you notice some green moss growing on the wall, as well as what looks to be strange symbols carved into north side of the room around a large door, you look at the far end and you spot a large wooden chest.",
+                1,{loockedDoor, openDoor, wallCandle, woodenChestClosed, woodenChestOpenWithAxe, woodenChestEmpty, enchantedAxe, heartOfGiant, enchantedWaterSkin, deadGiant, moss, carvings, key1},
+                 //north,south,east,west.
                 2,0,0,0,twoHeadedGiant);
-  room caveRoom2=room("Cave Room 2",
+
+
+  
+  //ROOM 2
+  room spidersNest=room("Cave Room 2",
     "You run thru a corridor of stone, and make it to an opening with a small amount of faint light. You Panic as you realize the room is a small ledge with a large bottomless pit in the middle that you are currently running towards. You attempt to stop digging your heel into the ground, and your hurt leg sends shocks of agony thru your body, you fail to come to a complete stop, and just before you fall you manage to grab the ledge. You are now hanging from your left hand...'AHHHHH!' you yell as you dangle from one arm. Your strength catches you by surprise as you are able to easily hold yourself.",
                 2,{},
                 0,1,0,0,zombieSpider);
 
-//north,south,east,west.
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+
+ 
+
+
+
+
+  cout<<"Before we being, please input your name.\n\n> ";
+  playerName=getStringInRawMode(20,20);
+  clear();
+
+  //!!PLAYER~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  //player = name, {items}
+  player player1=player(playerName, {coat,gun});
+
+
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //game = name, {rooms};
-  game game={"Death in the Dark",{darkCave,caveRoom2}};
+  game game={"Death in the Dark",{darkCave,spidersNest}};
 
   
   game.player1=player1;
@@ -375,9 +432,9 @@ int main() {
   largeType("Welcome to");
   largeType(game.name);
   cout<<"\n\n";
-  game.getRoomByID(currentRoomId).displayRoomName();
+  game.currentRoom().displayRoomName();
   cout<<"\n\n";
-  game.getRoomByID(currentRoomId).displayDescription();  
+  game.currentRoom().displayDescription();  
   helperMessage();
   mainGameLoop(game);
  
@@ -389,13 +446,15 @@ int main() {
 
 void mainGameLoop(game& game){
     while(2){
-    if(game.singleThread==false&&game.multiThreadingOn==false&&game.getRoomByID(game.currentId).monsterSpawn==true){
+    if(game.singleThread==false&&game.multiThreadingOn==false&&game.currentRoom().monsterSpawn==true){
         multiThreadProgram(game);
     }
+    
     displayObj.displayActionCurrent(game);
     bool skipFunctions=false;
     game.input=getStringInRawMode(0,30);
     clear();
+
     displayObj.titleBool=false;
     displayObj.descBool=false;
     displayObj.invDesB=false;
@@ -415,6 +474,8 @@ void mainGameLoop(game& game){
 
     if(skipFunctions!=true){generalInputProcessingFunction(game);}
     
+
+   
 //     if(game.input.find("use")!=string::npos&&skipFunctions==false){
 //       useFunction(game);
 //       skipFunctions=true;
@@ -458,13 +519,13 @@ void greetingModule(){
 void moveToRoom(game& game){
   int nextRoom;
   if(game.input=="n"||game.input=="north"){
-    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("n");
+    nextRoom=game.currentRoom().getNextRoomId("n");
     if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      // game.getRoomByID(game.currentId).displayRoomName();
+      // game.currentRoom().displayRoomName();
       displayObj.title=game.currentId;
-      if(game.getRoomByID(game.currentId).descriptionRead==false){
-        // game.getRoomByID(game.currentId).displayDescription();
+      if(game.currentRoom().descriptionRead==false){
+        // game.currentRoom().displayDescription();
         game.rooms[game.currentId-1].descriptionRead=1;
         displayObj.description=game.currentId;
       }else{
@@ -477,13 +538,13 @@ void moveToRoom(game& game){
     return;
   }
   if(game.input=="s"||game.input=="south"){
-    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("s");
+    nextRoom=game.currentRoom().getNextRoomId("s");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      // game.getRoomByID(game.currentId).displayRoomName();
+      // game.currentRoom().displayRoomName();
       displayObj.title=game.currentId;
-      if(game.getRoomByID(game.currentId).descriptionRead==false){
-        // game.getRoomByID(game.currentId).displayDescription();
+      if(game.currentRoom().descriptionRead==false){
+        // game.currentRoom().displayDescription();
         game.rooms[game.currentId-1].descriptionRead=1;
         displayObj.description=game.currentId;
       }else{
@@ -495,14 +556,14 @@ void moveToRoom(game& game){
     return;
   }
   if(game.input=="w"||game.input=="west"){
-    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("w");
+    nextRoom=game.currentRoom().getNextRoomId("w");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      // game.getRoomByID(game.currentId).displayRoomName();
+      // game.currentRoom().displayRoomName();
       displayObj.title=game.currentId;
-      if(game.getRoomByID(game.currentId).descriptionRead!=true){
-        // game.getRoomByID(game.currentId).displayDescription();
-        game.getRoomByID(game.currentId).toggleDescriptionRead();
+      if(game.currentRoom().descriptionRead!=true){
+        // game.currentRoom().displayDescription();
+        game.currentRoom().toggleDescriptionRead();
         displayObj.description=game.currentId;
       }
     }else{
@@ -511,14 +572,14 @@ void moveToRoom(game& game){
     return;
   }
   if(game.input=="e"||game.input=="east"){
-    nextRoom=game.getRoomByID(game.currentId).getNextRoomId("e");
+    nextRoom=game.currentRoom().getNextRoomId("e");
      if(nextRoom!=0){
       game.changeCurrentId(nextRoom);
-      // game.getRoomByID(game.currentId).displayRoomName();
+      // game.currentRoom().displayRoomName();
       displayObj.title=game.currentId;
-      if(game.getRoomByID(game.currentId).descriptionRead!=true){
-        // game.getRoomByID(game.currentId).displayDescription();
-        game.getRoomByID(game.currentId).toggleDescriptionRead();
+      if(game.currentRoom().descriptionRead!=true){
+        // game.currentRoom().displayDescription();
+        game.currentRoom().toggleDescriptionRead();
         displayObj.description=game.currentId;
       }
     }else{
@@ -555,7 +616,7 @@ void generalInputProcessingFunction(game& game){
         
           for(int i=0;i<game.player1.inventory.size();i++){
               if(game.player1.inventory[i].visible==true){
-                  displayObj.currentDisplay.push_back("\r"+std::to_string(counter)+". "+game.player1.inventory[i].name+"\n"); 
+                  displayObj.currentDisplay.push_back("\r"+std::to_string(counter)+". "+game.player1.inventory[i].name[0]+"\n"); 
                   // cout<<counter<<". "<<game.player1.inventory[i].name<<"\n";
                   counter++;
               }
@@ -590,10 +651,10 @@ void generalInputProcessingFunction(game& game){
                 // cout<<"\n\n";
                 displayObj.description=game.currentId;
                 displayObj.descBool=true;
-                if(game.getRoomByID(game.currentId).monsterSpawn==true){
+                if(game.currentRoom().monsterSpawn==true){
                     //replace this with an itemm trigger or monster spawn trigger.
                     // cout<<"hello";
-                    displayObj.currentDisplay.push_back("\r"+game.getRoomByID(game.currentId).monst.description);
+                    displayObj.currentDisplay.push_back("\r"+game.currentRoom().monst.description);
                     game.singleThread=false;
                 }
                 // displayObj.displayActionCurrent(game);
@@ -605,7 +666,7 @@ void generalInputProcessingFunction(game& game){
     //end of look verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-
+     
     //examine verb logic~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         vector<string> possibleVerb={"x","examine"};
         bool checkLoop=false;
@@ -626,20 +687,23 @@ void generalInputProcessingFunction(game& game){
             if((userInput.find(possibleVerb[i])!=string::npos)&&userInput.size()>possibleVerb[i].size()){
                 possibleInput={};
                 //here I set possible input to the examine verb plus a possilble noun
-                for(int i=0;i<game.getRoomByID(game.currentId).items.size();i++){
-                    possibleInput.push_back("x "+game.getRoomByID(game.currentId).items[i].name);
-                    possibleInput.push_back("examine "+game.getRoomByID(game.currentId).items[i].name);
-                }
-                
+                for(int i=0;i<game.currentRoom().items.size();i++){
+                  for(int j=0;j<game.currentRoom().items[i].name.size();j++){
+                    possibleInput.push_back("x "+game.currentRoom().items[i].name[j]);
+                    possibleInput.push_back("examine "+game.currentRoom().items[i].name[j]);
+                  } 
+                }               
                 for(int i=0;i<game.player1.inventory.size();i++){
-                    possibleInput.push_back("x "+game.player1.inventory[i].name);
-                    possibleInput.push_back("examine "+game.player1.inventory[i].name);
+                  for(int j=0;j<game.player1.inventory[i].name.size();j++){
+                    possibleInput.push_back("x "+game.player1.inventory[i].name[j]);
+                    possibleInput.push_back("examine "+game.player1.inventory[i].name[j]);
+                  }
                 }
-                // for(int i=0;i<possibleInput.size();i++){
-                //   cout<<"\n"<<possibleInput[i];
-                // }
-                // system("stty sane");
-                // exit(0);
+
+              
+
+                 
+             
                 //here I find if any of the nounds match and then I must take that noun and display it's description, and change the display object
                 for(int i=0;i<possibleInput.size();i++){
                         if(userInput==possibleInput[i]){
@@ -654,48 +718,75 @@ void generalInputProcessingFunction(game& game){
                                nounFound=userInput.substr(8,userInput.size());
                             }
                             if(nounFound.size()>0){
-                                // cout<<"works ";
+                      
+
 
                                 //checks player items
-                                if(game.player1.getItemIndexByName(nounFound)!=NO_INDEX){
-                                  if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition==true){
-                                  game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerCondition=false;
-                                  displayObj.currentDisplay.push_back(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].triggerMessage);
+                                if(game.player1.getItemInd(nounFound)!=NO_INDEX&&game.player1.inventory[game.player1.getItemInd(nounFound)].visible==true){
+
+                                  if(game.player1.inventory[game.player1.getItemInd(nounFound)].triggerCondition==true){
+                                    // cout<<"works";
+                                    game.player1.inventory[game.player1.getItemInd(nounFound)].triggerCondition=false;
+                                    displayObj.currentDisplay.push_back(game.player1.inventory[game.player1.getItemInd(nounFound)].triggerMessage);
                                   }
                                   //here I check in an inspection is from an item in the inventory that triggers something else to happen
                                   //this section makes triggers from x commands of player inventory
                                   //please place inventory triggers here.
-
-                                    if(game.player1.inventory[game.player1.getItemIndexByName(nounFound)].name=="coat"){
+                                  
+                                    if(game.player1.inventory[game.player1.getItemInd(nounFound)].name[0]=="coat"){
                                       game.gunFound=true;
                                       game.rooms[game.currentId-1].monsterSpawn=true;
-                                      game.player1.inventory[game.player1.getItemIndexByName("gun")].visible=true;
+                                      game.player1.inventory[game.player1.getItemInd("gun")].visible=true;
 
                                       
                                     }
-                                   
+                                 
                                 }
                                 
 
 
                                 //checks room items
-
-                               
-                                if(game.getRoomByID(game.currentId).getItemIndexByName(nounFound)!=NO_INDEX){
-                                  if(game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerCondition==true){
-                                    game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerCondition=false;
-                                    displayObj.currentDisplay.push_back(game.getRoomByID(game.currentId).items[game.getRoomByID(game.currentId).getItemIndexByName(nounFound)].triggerMessage);
+                                 //this line is faulty
+                            //  cout<<game.currentRoom().getItemInd(nounFound)<<"\n";
+                            //  cout<<game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].visible<<"\n";
+                            
+                                
+                                if(game.currentRoom().getItemInd(nounFound)!=NO_INDEX&&game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].visible==true){
+                                  // cout<<"works";
+                                  if(game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].triggerCondition==true){
+                                    game.rooms[game.currentId-1].items[game.currentRoom().getItemInd(nounFound)].triggerCondition=false;
+                                    displayObj.currentDisplay.push_back(game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].triggerMessage);
                                   }
-
+                                   
+                                   
                                   //place your room item triggers here
+                                  if(game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].name[0]=="carvings"){
+                                      // cout<<game.currentRoom().getItemInd("key");
+                                     
+                                      game.player1.inventory.push_back(game.currentRoom().items[game.currentRoom().getItemInd("key")]);
+                                      game.player1.inventory[game.player1.getItemInd("key")].visible==true;
+                                      
+                                  }
 
                                 }
                                 
-                               
-                                displayObj.itemDescription=(nounFound);
-                                displayObj.invDesB=true;
-                                // displayObj.displayActionCurrent(game);
+                           
+                               if(game.player1.getItemInd(nounFound)!=NO_INDEX){
+                                 displayObj.itemName=(nounFound);
+                                 displayObj.invDesB=true;
                               
+                               }else if(game.currentRoom().getItemInd(nounFound)!=NO_INDEX){
+                                 displayObj.itemName=(nounFound);
+                                 displayObj.itemDescB=true;                              
+                               }
+                              
+                            
+                                
+                            
+                                
+                                // displayObj.displayActionCurrent(game);
+                                
+                               
                                 return;
                             }
                           
@@ -974,7 +1065,7 @@ for(int i=0;i<input.size();i++){
 }
 
 void displayVerb(game& game){
-    game.getRoomByID(game.currentId).displayRoomName();
+    game.currentRoom().displayRoomName();
     for(int i=0;i<displayObj.currentDisplay.size();i++){
         cout<<displayObj.currentDisplay[i];
     }
@@ -985,8 +1076,8 @@ void timerMinutes(game& game){
     int seconds=0;
     int milliSeconds=0;
     string displayMillis="00";
-    timerVars.minutesLeft=game.getRoomByID(game.currentId).monst.timeToKill[0];
-    timerVars.secondsLeft=game.getRoomByID(game.currentId).monst.timeToKill[1];
+    timerVars.minutesLeft=game.currentRoom().monst.timeToKill[0];
+    timerVars.secondsLeft=game.currentRoom().monst.timeToKill[1];
     // string timerString;
     auto start = std::chrono::steady_clock::now();
     int current_ms_elapsed=0;

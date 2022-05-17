@@ -9,8 +9,6 @@
 #include <algorithm>
 #include <limits>
 #include <thread>
-
-#include <pthread.h>
 #include <chrono>
 //I use a windows prepocessor so that I can edit my code on my laptop and it uses a .h library but it doesn't utilize the library unless it's on windows.
 #ifdef __MINGW32__ 
@@ -124,7 +122,6 @@ struct room{
   int getItemInd(string nam){
         for(int i=0;i<items.size();i++){
           for(int j=0;j<items[i].name.size();j++){
-            // cout<<items[i].name[j]<<"--\n";
             if(items[i].name[j]==nam){
                 return i;
             }
@@ -136,10 +133,13 @@ struct room{
 
   void getItemsDescByName(string Nam){
     for(int i=0;i<items.size();i++){
-        if(items[i].name[0]==Nam&&items[i].visible==true){
+      for(int j=0;j<items[i].name.size();j++){
+        if(items[i].name[j]==Nam&&items[i].visible==true){
             cout<<items[i].description;
             items[i].triggerCondition=false;
         }
+      }
+        
     }
 }
   int getNextRoomId(string cords){
@@ -208,9 +208,12 @@ struct player{
     //must be first name
     int getItemInd(string nam){
         for(int i=0;i<inventory.size();i++){
-            if(inventory[i].name[0]==nam){
+          for(int j=0;j<inventory[i].name.size();j++){
+            if(inventory[i].name[j]==nam){
                 return i;
             }
+          }
+            
         }
         return NO_INDEX;  
     };
@@ -222,7 +225,6 @@ public:
   string input;
   int currentId=1;
   bool validInput=false;
-  bool gunFound=false;
   bool singleThread=true;
   bool shootable=false;
   bool multiThreadingOn=false;
@@ -734,7 +736,6 @@ void generalInputProcessingFunction(game& game){
                                   //please place inventory triggers here.
                                   
                                     if(game.player1.inventory[game.player1.getItemInd(nounFound)].name[0]=="coat"){
-                                      game.gunFound=true;
                                       game.rooms[game.currentId-1].monsterSpawn=true;
                                       game.player1.inventory[game.player1.getItemInd("gun")].visible=true;
 
@@ -763,8 +764,9 @@ void generalInputProcessingFunction(game& game){
                                   if(game.currentRoom().items[game.currentRoom().getItemInd(nounFound)].name[0]=="carvings"){
                                       // cout<<game.currentRoom().getItemInd("key");
                                      
-                                      game.player1.inventory.push_back(game.currentRoom().items[game.currentRoom().getItemInd("key")]);
-                                      game.player1.inventory[game.player1.getItemInd("key")].visible==true;
+                                      game.player1.inventory.push_back(game.currentRoom().items[game.currentRoom().getItemInd("key1")]);
+                                      game.player1.inventory[game.player1.getItemInd("key1")].visible=true;
+                                      // cout<<game.player1.getItemInd("key");
                                       
                                   }
 
@@ -776,6 +778,7 @@ void generalInputProcessingFunction(game& game){
                                  displayObj.invDesB=true;
                               
                                }else if(game.currentRoom().getItemInd(nounFound)!=NO_INDEX){
+                                //  cout<<"should work";
                                  displayObj.itemName=(nounFound);
                                  displayObj.itemDescB=true;                              
                                }
